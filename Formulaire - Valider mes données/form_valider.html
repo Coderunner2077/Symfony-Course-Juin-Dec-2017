@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Valider mes données</title>
+</head>
+<body>
+<div class="container text-justify">
+														<h1>Valider mes données</h1>
+														
+Symfony contient un composant <em>Validator</em> qui s'occupe de la validation des données. Attaquons-le donc.
+
+<h2>I./ Pourquoi valider des données ?</h2>
+<h3>1.) Never trust user input</h3>
+<p>Bref.</p>
+<p>La validation et les formulaires sont liés, dans le sens où les formuliares ont besoin de la validation. Mais l'inverse n'est pas vrai ! 
+Dans Symfony, le <b>validator</b> est un service indépendant, et n'a nul besoin d'un formulaire pour exister. En effet, avec le <b>validator</b>,
+on peut valider n'importe quel objet, entité ou non, sans avoir besoin de formulaire.</p>
+
+<h3>2.) L'intérêt de la validation</h3>
+
+<p>L'objectif de ce chapitre est donc d'apprendre à définir qu'un objet est valide ou pas. Plus concrètement, il me faudra établir les règles
+précises pour que les attributs de mes objets soient valides. en vérifiant les données avant de les enregistrer en base de données, on est
+certain d'avoir une base de données cohérente, en laquelle on peut avoir confiance !</p>
+
+<h3>3.) La théorie de la validation</h3>
+
+<p>On définit d'abord les règles de validation que l'on rattache à une classe. Puis on fait appel à un service extérieur pour venir lire
+un objet (instance de ladite classe) et ses règles, et définir si oui ou non l'objet en question respecte ces règles.</p>
+
+<h2>II./ Définir les règles de la validation</h2>
+<h3>1.) Les différentes formes de règles</h3>
+
+<p>Pour définir ces règles de validation, ou containtes, il existe deux moyens :</p>
+<ol>
+	<li>Le premier est d'utiliser les <b>annotations</b>. Leur avantage est d'être situées au sein même de l'entité, et éventuellement 
+		juste à côté des annotations de <em>mapping</em>  Doctrine.</li>
+	<li>Le deuxième est d'utiliser le <b>YAML, XML</b> ou <b>PHP</b>. Je place donc mes règles de validation hors de l'entité, dans un 
+		fichier séparé.</li>
+</ol>
+
+<p>Les deux moyens sont parfaitement équivalents en termes de fonctionnalité. Le choix se fait donc sur mes préférences. Dans la suite du 
+cours, on utilisera les annotations et centraliser donc les règles de validation et <em>mapping</em> de Doctrine au mêm endroit. Facile
+à lire et à modifier.</p>
+
+<h3>2.) Définir les règles de validation</h3>
+<h4>a./ Préparation</h4>
+
+<p>Je vais prendre l'exemple de mon entité <b>Advert</b> pour construire mes règles. La 1re étape consiste à déterminer les règles que je
+veux avec des mots, comme ceci:</p>
+<ul>
+	<li>La date doit être une date valide</li>
+	<li>Le titre doit faire au moins 10 caractères de long</li>
+	<li>Le contenu ne doit pas être vide</li>
+	<li>Le nom de l'auteur doit faire au moins 2 caractères de long</li>
+	<li>L'image liée doit être valide selon les règles attachées à l'objet <b>Image</b>
+</ul>
+
+<h4>b./ Annotations</h4>
+
+<p>Pour définir les règles de validation, je vais donc utiliser les annotations. La 1re chose à savoir est le namespace  des annotations à
+utiliser. Souvenons-nous, pour le mapping Doctrine, c'était <b>@ORM</b>, ici on va utiliser l'alias <b>@Assert</b>. Voici donc le 
+namespace complet :</p>
+
+<pre><b>use Symfony\Componnet\Validator\Constraints as Assert;</b></pre> 
+
+<p>Ce <b>use</b> est à rajouter au début de chaque objet à valider. En réalité, je peux définir l'alias à autre chose qu'<b>Assert</b>. Mais
+c'est une convention qui s'est installée, donc autant la suivre pour avoir un code plus facilement lisible pour les autres développeurs.</p>
+
+<p>Ensuite, il ne reste plus qu'à ajouter les annotations pour traduire les règles que l'on vient de lister. Sans plus attendre, voici donc
+la syntaxe à respecter. Exemple avec mon objet <b>Advert</b>.</p>
+
+<b>Réf Advert.php</b>
+
+<p class="alert alert-info">
+On a pris l'exemple d'une entité, car ce sera souvent le cas. Mais on peut mettre des règles de validation sur n'importe quel objet, qui
+n'est pas forcément une entité</p>
+
+<h4>c./ Syntaxe</h4>
+
+<p>Revenons un peu sur les annotations que l'on a ajoutées. On a utilisé la forme simple, qui est construire comme ceci: </p>
+
+<pre><b>@Assert\Contrainte(valeur de l'option par défaut)</b></pre>
+
+<p>Avec: </p>
+
+<ul>
+	<li>La <b>Contrainte</b>, exemple => <b>NotBlank</b> ou <b>Length</b>, etc.</li>
+	<li>La <b>Valeur</b> entre parenthèses, qui est la valeur de l'option par défaut. En effet, chaque contrainte a plusieurs options, dont
+		une par défaut souvent intuitive. Par exemple, l'option par défaut de <b>Type</b> est la valeur du type à restreindre.</li>
+</ul>
+
+<p>Mais on peut aussi utiliser la forme étendue qui permet de personnaliser la valeur de plusieurs options en même temps, comme ceci :</p>
+
+<pre><b>@Assert\Contrainte(options1="valeur1", option2="valeur2")</b></pre>
+
+Les différentes options diffèrent d'une contrainte à une autre, mais voici un exemple avec la contrainte <b>Length</b> :
+
+<pre><b>@Assert\Length(min=10, minMessage="Le titre doit faire au moins {{ limit }} caractères.")</b></pre>
+
+<p class="alert alert-info">
+Oui, je peux utiliser <b>{{ limit }}</b>, qui est ici la longueur minimum définir dans l'option "min".</p>
+
+<p>Bien entendu, je peux mettre plusieurs contraintes sur un même attribut. Par exemple, pour un attribut représentant une URL, on pourrait
+mettre deux contraintes suivantes:</p>
+
+<pre><b>
+/**
+ * @Assert\Length(max=255)
+ * @Assert\Url()
+ */
+private $note</b></pre>
+
+<p>Voilà. Il n'y a rien de plus à connaître sur les annotations. A part les contraintes existantes et leurs options, bien entendu.</p>
+
+<h3>3.) Liste des contraintes existantes</h3>
+
+<p>Voici un tableau qui regroupe la plupart des contraintes, à avoir sous la main lorsque je définis mes règles de validation. Elles sont
+bien entendu toutes documentées, et je peux me référer à la <a href="https://symfony.com/doc/current/reference/constraints.html" 
+target="_blank">documentation officielle</a> pour toute information supplémentaire.</p>
+
+<p>Toutes les contrainte disposent de l'option <b>message</b>, qui est le message à afficher lorsque la contrainte est violée. On n'a pas
+répété cette option dans les tableaux suivants, mais elle existe bien à chaque fois.</p>
+
+<h4>Contraintes de base</h4>
+
+<table class="table table-striped table-condensed">
+	<tr class="warning">
+		<th>Contrainte</th><th>Rôlé</th><th>Options</th>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/NotBlank.html" target="_blank">NotBlank</a><br>
+			<a href="https://symfony.com/doc/current/reference/constraints/Blank.html" target="_blank">Blank</a></td>
+		<td>
+			La contrainte <b>NotBlank</b> vérifie que la valeur soumise n'est ni une chaîne de caractères vide, ni <b>NULL</b>. <br>
+			La contrainte <b>Blank</b> fait l'inverse.
+		</td>
+		<td>-</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/True.html" target="_blank">True</a><br>
+			<a href="https://symfony.com/doc/current/reference/constraints/False.html" target="_blank"></a></td>
+		<td>
+			La contrainte <b>True</b> vérifie que la valeur vaut <b>true</b>, <b>1</b> ou <b>"1"</b>.<br>
+			La contrainte <b>False</b> vérifie que la valeur vaut <b>false, 0</b> ou <b>"0"</b>.</td>
+		<td>-</td>
+ 	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/NotNull.html" target="_blank">NotNull</a><br>
+			<a href="https://symfony.com/doc/current/reference/constraints/Null.html" target="_blank">Null</a></td>
+		<td>
+			La contrainte <b>NotNull</b> vérifie que la valeur est strictement différente de <em>null</em>.
+		</td>
+		<td>-</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Type.html" target="_blank">Type</a></td>
+		<td>
+			La contrainte <b>Type</b> vérifie que la valeur est bien du type donnée en argument.
+		</td>
+		<td>
+			<b>type</b> (option par défaut): le type auquel la valeur doit correspondre, parmi <b>array, bool, int, object</b>, 
+			<a href="https://symfony.com/doc/current/reference/constraints/Type.html#options" target="_blank">etc.</a>
+		</td>
+	</tr>
+</table>
+
+<h4>Contraintes sur des chaînes de caractères :</h4>
+
+<table class="table table-striped table-condensed">
+	<tr class="warning">
+		<td>Contrainte</td><td>Rôle</td><td>Options</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Email.html" target="_blank">Email</a></td>
+		<td>
+			La contrainte Email vérifie que la valeur est une adresse e-mail valide
+		</td>
+		<td>
+			<b>checkMX</b> (défaut: false) : si défini à true, Symfony va vérifier les MX de l'e-mail via la fonction 
+			<a href="http://www.php.net/manual/en/function.checkdnsrr.php" target="_blank">checkdnsrr</a>.
+		</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Length.html" target="_blank">Length</a></td>
+		<td>
+			La contrainte Length vérifie que la valeur donnée fait au moins X ou au plus Y caractères de long</td>
+		<td>
+			<b>min</b> : le nombre de caractères minimum à respecter.<br>
+			<b>max</b> : le nombre de caractères maximum à respecter.<br>
+			<b>minMessage</b> : le message d'erreur dans le cas où la contrainte minimum n'est pas respectée.<br>
+			<b>maxMessage</b> : le message d'erreur dans le cas où la contrainte maximum n'est pas respectée.<br>
+			<b>charset</b> (défaut: <b>UTF-8</b>) : le charset à utiliser pour calculer la longueur.</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Url.html" target="_blank">Url</a></td>
+		<td>
+			La contrainte Url vérifie que la valeur est une adresse URL valide</td>
+		<td>
+			<b>protocols</b> (défaut: <b>array('http', 'https')</b>) : définit les protocoles considérés comme valides. Si je veux accepter
+			les URL en <b>ftp://</b>, je l'ajoute à cette option.</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Regex.html" target="_blank">Regex</a></td>
+		<td>
+			Vérifie la valeur par rapport à une regex</td>
+		<td>
+			<b>pattern</b> (option par défaut) : la regex à faire correspondnre.<br>
+			<b>match</b> (défaut: <b>true</b>) : définit si la valeur doit (<b>true</b>) ou ne doit pas (<b>false</b>) correspondre à la
+			regex.</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Ip.html" target="_blank">Ip</a></td>
+		<td>
+			Vérifie que la valeur est une adresse IP valide.</td>
+		<td>
+			<b>type</b> (défaut: 4): version de l'IP à considérer.<b>4</b> pour IPv4, <b>6</b> pour IPv6, et <b>all</b> pour toutes les 
+			versions, et <a href="https://symfony.com/doc/current/reference/constraints/Ip.html#options" target="_blank">d'autres</a>.</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Language.html" target="_blank">Language</a></td>
+		<td>
+			Vérifie que la valeur est un code de langage valide selon la <a href="https://www.loc.gov/standards/iso639-2/php/code_list.php"
+			target="_blank">norme</a>.</td>
+		<td>-</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Locale.html" target="_blank">Locale</a></td>
+		<td>
+			Vérifie que la valeur est une locale valide. Exemple : <b>fr</b> ou <b>fr_FR</b>.</td>
+		<td>-</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Country.html" target="_blank">Country</a></td>
+		<td>
+			Vérifie que la valeur est un code pays en <b>2</b> lettres valide. Exemple : <b>fr</b>.</td>
+		<td>-</td>
+	</tr>
+</table>
+
+<h4>Contraintes sur les nombres</h4>
+
+<table class="table table-striped table-condensed">
+	<tr class="warning">
+		<td>Contrainte</td><td>Rôle</td><td>Options</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Range.html" target="_blank">Range</a></td>
+		<td>
+			Vérifie que la valeur ne dépasse pas X, ou qu'elle dépasse Y.</td>
+		<td>
+			<b>min</b> : la valeur minimum à respecter.<br>
+			<b>max</b> : la valeur maximum à respecter.<br>
+			<b>minMessage</b> : le message d'erreur dans le cas où la contrainte minimum n'est pas respectée.<br>
+			<b>maxMessage</b> : le message d'erreur dans le cas où la contrainte maximum n'est pas respectée.<br>
+			<b>invalidMessage</b> : message d'erreur lorsque la valeur n'est pas un nombre.</td>
+	</tr>
+</table>
+
+<h4>Contraintes sur les dates</h4>
+
+<table class="table table-striped table-condensed">
+	<tr class="warning">
+		<td>Contrainte</td><td>Rôle</td><td>Options</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Date.html" target="_blank">Date</a></td>
+		<td>
+			Vérifie que la valeur est un objet de type <b>DateTime</b>, ou une chaîne de caractères du type <b>YYYY-MM-DD</b>.</td>
+		<td>-</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Time.html" target="_blank">Time</a></td>
+		<td>
+			Vérifie que la valeur est un objet de type <b>DateTime</b>, ou une chaîne de caractères du type <b>HH:MM:SS</b></td>
+		<td>-</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/DateTime.html" target="_blank">DateTime</a></td>
+		<td>
+			Vérifie que la valeur est un objet de type <b>DateTime</b>, ou une chaîne de caractères du type <b>YYYY-MM-DD HH:MM:SS</b>.</td>
+		<td>-</td>
+	</tr>
+</table>
+
+<h4>Contraintes sur les fichiers</h4>
+		
+<table class="table table-striped table-condensed">
+	<tr class="warning">
+		<td>Contrainte</td><td>Rôle</td><td>Options</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/File.html" target="_blank">File</a></td>
+		<td>
+			Vérifie que la valeur  est un fichier valide, c'est-à-dire soit une chaîne de caractères qui pointe vers un fichier existant,
+			soit une instance de la classe 
+			<a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Component/HttpFoundation/File/File.php" target="_blank">File</a>
+			(ce qui inclut UploadedFile).</td>
+		<td>
+			<b>maxSize</b> : la taille maximale du fichier. Exemple : 1M ou 1k.<br>
+			<b>mimeTypes</b>: mimeType(s) que le fichier doit avoir.</td>
+	</tr>
+	<tr>
+		<td><a href="https://symfony.com/doc/current/reference/constraints/Image.html" target="_blank">Image</a></td>
+		<td>
+			Vérifie que la valeur est valide selon la contrainte précédente File (dont elle hérite les options), sauf que les mimeTypes
+			acceptés sont automatiquement définis comme ceux de fichiers images. Il est également possible de mettre des contraintes sur la
+			hauteur maximum ou la largeur maximum de l'image.</td>
+		<td>
+			<b>maxSize</b> : la taille maximale du fichier. Exemple: 1M ou 1k.<br>
+			<b>minWidth / maxWidth</b> : la largeur minimale et maximale que doit respecter l'image.<br>
+			<b>minHeight / maxHeight</b> : la hauteur minimale et maximale que doit respecter l'image.<br>
+		</td>
+	</tr>
+</table>
+
+<p class="alert alert-danger">
+Les noms de contraintes sont sensibles à la casse. Il faudra faire attention à ce détail.</p>
+
+<p class="alert alert-info">
+On n'a listé ici que les contraintes les plus fréquentes. Il en existe d'autres que je peux découvrir dans la 
+<a href="https://symfony.com/doc/current/validation.html#supported-constraints" target="_blank">documentation</a>.</p>
+		
+<h2>III./ Déclencher la validation</h2>	
+<h3>1.) Le service <em>Validator</em></h3>
+
+<p>Comme on l'a dit précédemment, ce n'est pas l'objet qui se valide tout seul, on doit déclencher la validation nous mêmes. Ainsi, je peux
+tout à fait assigner une valeur non valide à un attribut sans qu'aucune erreur ne se déclenche. Par exemple, je peux faire 
+<b>$advert->setTitle('abc')</b> alors que ce titre a moins de 10 caractères. Il est invalide mais rien ne se passera.</p>
+
+<p>Pour valider l'objet, on passe par un acteur externe: le service <b>validator</b>. Ce service s'obtient comme n'importe quel autre
+service: </p>
+
+<pre><b>// Depuis un contrôleur
+
+$validator = $this->get('validator'); </b></pre>
+
+<p>Ensuite, on doit demander à ce service de valider notre objet. Cela se fait grâce à la méthode <b>validate</b> du service. Cette méthode
+retourne un objet qui est soit vide si l'objet est valide, soit rempli des différentes erreurs lorsque l'objet n'est pas valide. Pour
+bien comprendre, j'exécute cette méthode dans un contrôleur: </p>
+
+<pre><b>// Depuis un contrôleur
+
+public function testAction() {
+	$advert = new Advert;
+	
+	$advert->setDate(new DateTime()); 	// Champ "date" OK
+	$advert->setAuthor('A');			// Champ "author" incorrect: moins de 2 caractères
+	$avert->setTitle('abc');			// Champ "title" incorrect: moins de 10 caractères
+	// $advert->setContent('blabla');	// Champ "content" incorrect: on ne le définit pas
+	
+	// On récupère le service validator
+	$validator = $this->get('validator');
+	
+	// On déclenche la validation de notre objet
+	$listErrors = $validator->validate($advert);
+	
+	// Si $listErrors n'est pas vide, on affiche les erreurs
+	if(count($listErrors) > 0) {
+		// $listErrors est un objet, sa méthode __toString() permet de lister joliment les erreurs
+		return new Response((string)$listErrors);
+	} else {
+		return new Response("L'annonce est valide !");
+	}
+}
+</b>
+</pre>
+
+<p>Je peux m'amuser avec le contenu de l'entité <b>Advert</b> pour voir comment réagit le validateur.</p>
+
+<h3>2.) La validation automatique sur les formulaires</h3>
+
+<p>En pratique, on ne se servira que très peu du service <b>validator</b> nous-mêmes. En effet, le formulaire de Symfony le fait à notre
+place ! Je viens de voir le fonctionnement du service <b>validator</b> pour comprendre comment l'ensemble marche, mais en réalité, on 
+l'utilisera très peu de cette manière. </p>
+
+<p>Rappel du code de la soumission d'un formulaire :</p>
+
+<pre><b>if($form->hadleRequest($request)->isValid()); </b></pre>
+
+<p>Dans la méthode <b>handleRequest()</b>, le formulaire <b>$form</b> va lui-même faire appel au service <b>validator</b>, et valider
+l'objet qui vient d'être hydraté par le formulaire. Ensuite, la méthode <b>isValid()</b> vient compter le nombre d'erreurs et retourne 
+<em>false</em> s'il y a au moins une erreur. Derrière cette ligne se cache donc le code que j'ai vu au paragraphe précédent. Les erreurs
+sont assignées au formulaire, et sont affichées dans la vue. Je n'ai rien à faire, pratique !</p>
+
+<h2>IV./ Encore plus de règles de validation</h2>
+<h3>1.) Valider depuis un getter</h3>
+
+<p>Le composant <b>Validation</b> accepte les contraintes sur les attributs, mais également sur les getters ! C'est pratique, car je peux
+alors mettre une contrainte sur une fonction,  avec toute la liberté que cela m'apporte. Un getter est une méthode qui commence le plus
+souvent par "get", mais qui peut également commencer par "is".</p>
+
+<p>Tout de suite, un exemple d'utilisation :</p>
+
+<pre><b>
+class Advert {
+	//...
+	
+	/**
+	 * @Assert\IsTrue()
+	 */
+	public function isAdvertValid() {
+		return false;
+	}
+}
+</b></pre>
+	
+<p>Cet exemple vraiment basique considère toujours l'annonce comme non valide, car l'annotation <b>@Assert\IsTrue()</b> attend que
+la méthode retourne <b>true</b>, alors qu'ici la méthode retourne <b>false</b>. Si je l'essaye dans mon formulaire, j'aurrai une
+erreur du genre : "Cette valeur doit être vraie" (message par défaut de l'annotation <b>IsTrue()</b>) qui s'affiche en haut du formulaire.
+C'est donc une erreur qui s'applique à l'ensemble du formulaire.</p>
+
+<p>Mais il existe un moyen de déclencher une erreur liée à un champ en particulier, ainsi, l'erreur s'affichera juste à côté de ce champ. 
+Il suffit de nommer le getter <b>"is + le nom de l'attribut"</b>: par exemple <b>isTitle</b> si l'on veut valider le title. Essayons donc
+le code suivant :</p>
+
+<pre><b>
+class Advert {
+	// ...
+	
+	/**
+	 * @Assert\IsTrue()
+	 */
+	public function isTitle() {
+		return false;
+	}
+}
+</b></pre>
+		
+<p>==> L'erreur "Cette valeur doit être vraie" s'affichera bien à côté du champ <b>title</b>.</p>
+
+<p>Bien entendu, je peux faire plein de traitements, et de vérifications dans cette méthode, ici j'ai juste mis <b>return false</b> pour
+l'exemple.</p>
+
+<h3>2.) Valider intelligemment un attribut objet</h3>
+
+<p>Derrière ce titre se cache une problèmatique toute simle: lorsque je valide un objet A, comment valider un objet B en attribut, d'après
+ses propres règles de validation ?</p>
+
+<p>Il faut utiliser <b><a href="https://symfony.com/doc/current/reference/constraints/Valid.html" target="_blank">Valid</a></b>, qui va
+déclencher la validation du sous-objet B selon les règles de validation de cet objet B. Prenons un exemple : </p>
+
+<pre><b>
+class A {
+	/**
+	 * @Assert\Length(min=5)
+	 */
+	private $title;
+	
+	/**
+	 * @Assert\Valid()
+	 */
+	private $b;
+}
+
+class B {
+	/**
+	 * @Assert\Range(max=10)
+	 */
+	private $number;
+}
+</b></pre>
+		
+<p>Avec cette règle, lorsqu'on déclenche la validation sur l'objet A, le service <b>validator</b> va valider l'attribut <b>title</b> selon
+le <b>Length()</b>, puis va aller chercher les règles de l'objet B pour valider l'attribut <b>number</b> de B selon le <b>Range()</b>. Il ne
+faut pas oublier cette contrainte, var valider un sous-objet n'est pas le comportement  par défaut: sans cette règle <b>Valid</b> dans notre
+exemple, j'aurai pu sans problème ajouter une instance de B qui ne respecte pas la contrainte de 10 minimum pour son attribut <b>number</b>.
+J'aurais pu donc rencontrer des petits problèmes de logique si l'on veut.</p>
+
+<h3>3.) Valider depuis un <em>Callback</em></h3>
+
+<p>L'avantage de la contrainte <b><a href="https://symfony.com/doc/current/reference/constraints/Callback.html" target="_blank">Callback</a></b>
+est d'être personnalisable à souhait. En effet, je peux parfois avoir besoin de valider des données selon ma propre logique, qui ne rentre
+pas dans un <b>Length</b> par exemple.</p>
+
+<p>L'exemple classique est la censure de mots non désirés dans un attribut texte. Reprenons notre <b>Advert</b>, et considérons que 
+l'attribut <em>content</em> ne peut pas contenir les mots "démotivation" et "abandon".Voici comment mettre en place une règle qui va
+rendre invalide le contenu s'il contient l'un de ces mots: </p>
+
+<b>Réf Advert2.php</b>
+
+<p>J'aurais même pu aller plus loin en comparant des attributs entre eux, par exemple pour interdire de définir le pseudo dans un mot de 
+passe. L'avantage du <b>Callback</b> par rapport à une simple contrainte sur un getter, c'est de pouvoir ajouter plusieurs erreurs à la fois,
+en définissant sur quel attribut chacune se trouve grâce à la méthode <b>atPath()</b> (en mettant <b>content</b> ou <b>title</b>, etc.). 
+Souvent, la contrainte sur un getter suffira, mais il faut penser à ce <b>Callback</b> dans les cas où je serai limité.</p>
+
+<h3>4.) Valider un champ unique</h3>
+		
+<p>Il existe une dernière contrainte très pratique : <b><a href="https://symfony.com/doc/current/reference/constraints/UniqueEntity.html"
+target="_blank">UniqueEntity</a></b>. Cette contrainte permet de valier que la valeur d'un attribut est unique parmi toutes les entités
+existantes. Pratique pour vérifier qu'une adresse e-mail n'existe pas déjà dans une base de données par exemple.</p>
+
+<p>Oui, j'ai bien dit <em>entité</em>. En effet, c'est une contrainte un peu particulière, car elle ne se trouve pas dans le composant 
+<b>Validator</b> (qui lui est indépendant de Doctrine), mais dans le <em>bridge</em> entre Doctrine et Symfony (ce qui fait le lien entre
+ces deux bibliothèques). On n'utilisera donc pas <b>@Assert\UniqueEntity</b>, mais simplement <b>@UniqueEntity</b>. Il faut bien sûr 
+en contrepartie faire attention de rajouter ce <b>use</b> à chaque fois que je l'utilise :</p>
+
+<pre><b>use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;</b></pre>
+		
+<p>Voici comment on pourrait, dans notre exemple avec <b>Advert</b>, contraindre nos titre à être tous différents les uns des autres :</p>
+
+<b>Réf Advert3.php</b>
+
+<p class="alert alert-warning">
+Attention, ici l'annotation se définit sur la classe, et non sur une méthode ou un attribut.</p>
+
+<p>Illustration : </p>
+
+<figure class="text-center">
+	<img src="form_error.png" alt="Erreur dans le formulair">
+	<figcaption>Le validateur indique au formulaire que le titre existe déjà en base de données. Le formulaire 
+	m'affiche ensuite l'erreur.
+	</figcaption>
+</figure>
+<br>
+
+<p>Et si on jette un oeil dans le Profiler, on retrouvera en détail l'erreur levée :</p>
+
+<figure class="text-center">
+	<img src="form_error_profiler.png" alt="Erreur montrée dans Profiler" />
+	<figcaption>L'erreur est bien attaché au champ titre.</figcaption>
+</figure>
+<br>
+
+<h2>IV./ Valider selon mes propres contraintes</h2>
+<h3>1.) Les avantages de créer ses propres contraintes</h3>
+<p>
+L'objectif de cette section est d'apprendre à créer notre propre contrainte, que l'on pourra utiliser en annotation: <b>@NotreContrainte</b>.
+L'avantage d'avoir sa propre contrainte est double:</p>
+
+<ul>
+	<li>D'une part, c'est une contrainte réutilisable sur mes différents objets: on pourra l'utiliser sur <b>Advert</b>, mais également sur
+		<b>Application</b>, etc.</li>
+	<li>D'autre part, cela permet de placer le code de la validation dans un objet externe... et surtour dans un service !</li>
+</ul>
+
+<p>Une contrainte est toujours liée à un validateur, qui va être en mesure de valider la contrainte. Je vais donc les faire en deux étapes.
+Pour l'exemple, je vais créer une contrainte <b>AntiFlood</b>, qui impose un délai de 15 secondes entre chaque message posté sur le site
+(que ce soit une annonce ou une candidature).</p>
+
+<h3>2.) Créer la contrainte</h3>
+
+<p>Tout d'abord, il faut créer la contrainte en elle-même: c'est celle que j'appelerai en annotation depuis mes objets. Une classe de 
+contrainte est vraiment très basique, toute la logique se trouvera en réalité dans le validateur. Je vais donc créer le fichier suivant :</p>
+
+<b>Réf Antiflood.php</b>
+
+<p class="alert alert-info">
+L'annotation <b>@Annotation</b> est nécessaire pour que cette nouvelle contrainte soit disponible via les annotations dans les autres classes. 
+En effet, toutes les classes ne sont pass des annotations, heureusement.</p>
+
+<p>Les options de l'annotation correspondent en réalité aux attributs publics de la classe d'annotation. Ici, on a l'attribut 
+<b>message</b>, on pourra donc faire :</p>
+
+<pre><b>@Antiflood(message="Mon message personnalisé")</b></pre>
+		
+<p>C'est tout pour la contrainte. Passons au validateur.</p>
+
+<h3>3.) Créer le validateur</h3>
+
+<p>C'est la contrainte qui décide par quel validateur elle doit se fait valider. Par défaut, une contrainte <b>Xxx</b> demande à se faire 
+valider par le validateur <b>XxxValidator</b>. Créons donc le validateur <b>AntifloodValidator</b> :</p>
+
+<b>Réf AntifloodValidator.php</b>
+
+<p>C'est tout pour le validateur. Il contient juste une méthode <b>validate()</b> qui permet de valider ou non la valeur. Son argument
+<b>$value</b> correspond à la valeur de l'attribut sur laquelle on a défini l'annotation. Par exemple, si l'on avait défini l'annotation
+comme ceci :</p>
+
+<pre><b>
+/**
+ * @Annotation
+ */
+ private $content;
+</b></pre>
+		
+<p>...alors c'est tout logiquement le contenu de l'attriut <b>$contenu</b> au moment de la validation qui sera injecté en tant qu'argument
+<b>$value</b>.</p>
+
+<p>La méthode <b>validate()</b> ne doit pas renvoyer <b>true</b> ou <b>false</b> pour confirmer que la valeur est valide ou non. Elle doit
+juste lever une <b>Violation</b> si la valeur est invalide. C'est ce qu'on a fait ici das le cas où la chaîne fait moins de 3 caractères
+de long: on ajoute une violation, donc l'argument est le message d'erreur (accessible publiquement dans l'attribut de la contrainte).</p>
+
+<p>Il y a deux moyens de définir une violation :</p>
+
+<ul>
+	<li>Lorsque je n'ai que le message de l'erreur à passer, je peux utiliser la méthode <b>addViolation</b> qu'on a utilisé ici</li>
+	<li>Lorsque j'ai plus, comme dans notre précédent callback où on définissait l'attribut sur lequel attacher la violation, alors je 
+		peut utiliser la méthode<b>builViolation</b> qu'on a utilisé précémment.</li>
+</ul>
+
+<p>Je peux aussi utiliser des messages d'erreurs comme pramètres. Par exemple: <b>"Vote message %string% est considéré comme flood"</b>.
+Pour définir ce paramètre ce paramètre <b>"%string%"</b> utilisé dans le massage. Il faut utiliser la deuxième méthode pour définir la
+violation,comme ceci :
+
+<pre><b>
+$this->conext
+		->buildViolation($constraint->message)
+		->setParameters(array('%string%' => $value))
+		->addViolation();
+</b></pre>
+
+<p>Et voilà, je sais maintenant créer ma propre contrainte ! Pour l'utiliser, c'est comme n'importe quel autre annotation: on importe le
+namespace de l'annotation, et on la met en commentaires juste avant l'attribut concerné. Voici un exemple sur l'entité <b>Advert</b>:</p>
+
+<b>Réf Advert.php</b>
+
+<p>Mon annotation sera ainsi prise en compte au même titre que le <b>@Assert\NotBlank</b> par exemple ! Et bien sûr, je peux l'utiliser
+sur tous les objets que je veux: <em>Advert, Application, </em>etc.</p>
+
+<p>Voyons maintenant le principal intérêt de mes propres contraintes : la validation par un service !</p>
+
+<h3>4.) Transformer son validateur en service</h3>
+<h4>a./ L'intérêt du service-validateur</h4>
+
+<p>Un service on l'a déjà vu, c'est un objet qui remplit une fonction auquel on peut accéder de presque n'importe où dans mon code Symfony.
+Dans ce paragraphe, voyons comment s'en servir dans le cadre de nos contraintes de validation.</p>
+
+<p class="well">
+Quel intérêt y a-t-il à utiliser un service pour valider une contrainte ?</p>
+
+<p>Rappel de l'objectif de cette contrainte anti-flood: on veut empêcher quelqu'un de poster à moins de 15 secondes d'intervalle. Il me faut
+donc un accès à son IP pour le reconnaître, et à la base de données pour savoir quand était son dernier post. Tout cela est impossible sans
+service.</p>
+		
+<p>L'intérêt est donc qu'un service peut accéder à toutes sortes d'informations utiles. Il suffit de créer un service, de lui "injecter" les
+données, et il pourra ainsi s'en servir. Dans mon cas, on va lui injecter la requête et l'EntityManager comme données: il pourra ainsi
+valider notre contrainte non seulement à partir de la valeur <b>$value</b> d'entrée, mais également en fonction de paramètres extérieurs
+qu'on ira chercher dans la base de données !</p>
+
+<h4>b./ Définition du service</h4>
+		
+<p>Prenons un exemple pour bien comprendre le champ des possibilités. Il nous faut créer un service, en y injectant les services 
+<b>request_stack</b> et <b>entity_manager</b>, et en y apposant le tag <em><b>validator.contsraint_validator</b></em>. Voici ce que ça donne
+dans le fichier <b>services.yml</b> de mon bundle :</p>
+
+<b>Réf services.yml</b> 
+
+<h4>c./ Modification de la contrainte</h4>
+
+<p>Maintenant que notre validateur est un service en plus d'être simplement un objet, nous devons adapter un petit peu notre code. Tout 
+d'abord, modifions la contrainte pour qu'elle demande à se faire valider par le service d'alias <b>oc_platform_bundle</b> et non plus
+simplement par l'objet classique <b>AntifloodValidator</b>. Pour cela, il suffit de lui rajouter la méthode <b>validatedBy</b> suivante :</p>
+
+<b>Réf Antiflood2.php</b>
+
+<h4>d./ Modification du validateur</h4>
+
+<p>Enfin, il faudra adapter notre validateur pour que d'une part, il récupère les données qu'on lui injecte, grâce au constructeur, et
+d'autre part qu'il s'en serve tout simplement:</p>
+
+<b>Réf AntifloodValidator2.php</b>
+
+<p>Et voilà, je viens de faire une contrainte qui s'utilise aussi facilement qu'une annotation, et qui pourtant fait un gros travail en
+allant chercher dans la base de données si l'IP courante envoie trop de messages. Un peu de travail à la création de la contrainte, mais
+son utilisation est un jeu d'enfant à présent !</p>
+
+<article class="alert alert-info">
+<h4>Petit aparté sur l'utilisation de la requête en dépendance d'un service :</h4>
+La requête en tant que telle n'est pas un service ! En effet, elle peut changer au cours de la page, notamment lorsque je fais des
+sous-requêtes, par exemple avec l'utilisatin de {{ render }} depuis une vue qui crée une nouvelle sous-requête. Elle peut également être
+<em>null</em> lorsque j'exécute une commande depuis la console (la requête représentant la requête HTTP, en console elle n'existe pas !).
+<div>Pour ces raisons, il faut passer par le service <em>request_stack</em> qui, dans sa méthode <b>getCurrentRequest()</b>, contient la
+requête courante (la requête principale ou la sous-requête), voir null s'il n'y a pas de requête.</div></article>
+
+<p class="alert alert-info">
+Je trouverai un brin plus d'informations sur la <a href="https://symfony.com/doc/current/validation/custom_constraint.html" target="_blank">
+page de la documentation</a> sur la création de contrainte, notamment comment faire une contrainte qui s'applique non pas à un attribut,
+mais à une classe entière.</p>
+
+<p class="alert alert-warning">
+On n'a pas écrit la méthode <b>isFlood()</b> dans le repository de l'<b>Application</b>. A moi de le faire, en ajoutant un attribut <b>ip</b>
+dans les entités <b>Advert</b> et <b>Application</b>.</p>
+
+<h3>Pour conclure : </h3>
+
+<p>Je sais maintenant comment valider dignement mes données.</p>
+<p>Le formulaire était le dernier point que j'avais vraiment besoin d'apprendre. A partir de maintenant, je peux créer un site internet
+en entier avec Symfony, il ne manque plus que la sécurité à aborder, car pour l'instant,  sur ma plateforme d'annonce, tout le monde peut
+tout faire.</p>
+
+<article class="alert alert-warning">
+Remarque: Mes messages d'erreurs s'affichent au début du formulaire, même si j'écris les annotations devant les attributs.<br>
+Pour qu'ils s'affichent en bas des champs correspondants, j'ai deux choix :
+<ul>
+	<li>soit j'écris mes attributs sans le underscore</li>
+	<li>soit j'écris un underscore devant les noms des champs lors de la construction du formulaire</li>
+</ul> 
+<p>En en ce qui concerne l'annotation <b>isTrue()/isFalse()</b>, l'erreur ne s'affichera pas en bas du champ correspondant, mais
+au début du formulaire, si le nom de l'attribut (dans <b>is + Attribut</b>) ne correspond pas au nom du champ du formulaire (s'il
+y a un underscore dans le nom du champ par exemple...).</p>
+</article>
+<h2>En résumé :</h2>
+
+<ul>
+	<li>Le composant <b>validator</b> permet de valider les données d'un objet suivant des règles définies. </li>
+	<li>Cette validation est systématique lors de la soumission d'un formulaire: il est en effet impensable de laisser l'utilisateur entrer
+		ce qu'il veut sans vérifier !</li>
+	<li>Les règles de validation se définissent via les annotations directement à côté des attributs de la classe à valider. Je peux bien
+		sûr utiliser d'autres formats tels que le YAML ou le XML.</li>
+	<li>Il est également possible de valider à l'aide des getters, de <em>callbacks</em> ou même de services. Cela rend la procédure de 
+		validation très flexible et puissante.</li>
+	<li>Le code du cours tel qu'il doit être à ce stade est disponible sur la branche 
+		<a href="https://github.com/winzou/mooc-symfony/tree/iteration-15" target="_blank">iteration-15</a> du dépôt Github</li>
+</ul>		
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

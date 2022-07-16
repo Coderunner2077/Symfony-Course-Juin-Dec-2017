@@ -1,0 +1,7 @@
+# src/OC/PlatformBundle/Resources/config/services.yml
+
+services:
+    oc_platform.form.ckeditor:
+        class: OC\PlatformBundle\Form\CkeditorType
+        tags:
+            - { name: form.type, alias: ckeditor }

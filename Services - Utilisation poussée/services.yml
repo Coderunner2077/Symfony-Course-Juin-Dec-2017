@@ -1,0 +1,9 @@
+# src/OC/PlatformBundle/Resources/config/services.yml
+
+services:
+    oc_platform.twig.antispam_extension:
+        class: OC\PlatformBundle\Twig\AntispamExtension
+        arguments:
+            - "@oc_platform.antispam"
+        tags:
+            - { name: twig.extension }

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>La couche métier - Les entités</title>
+</head>
+<body>
+
+													<h1>La couche métier - Les entités</h1>
+											
+L'objectif d'un ORM (pour Object-Relation Mapper, soit en français "lien objet-relation") est simple : se charger de l'enregistrement de mes 
+données en me faisant oublier que j'ai une base de données. Comment ? En s'occupant de tout ! Je ne vais plus écrire de requêtes, ni créer de 
+tables via phpMyAdmin. Dans mon code PHP, je vais faire appel à Doctrine2, l'ORM par défaut de Symfony, pour faire tout cela.
+
+<h2>II./ Notions d'ORM : fini les requêtes, utilisons les objets</h2>
+
+Pour l'exemple, prenons une variable $user contenant un objet User représentant l'un de mes utilisateurs. POur sauvegarder cet objet, je vais 
+tout simplement utiliser une fonction d'ORM, comme ceci :
+
+<strong>
+$orm->save($user);
+</strong>
+...et ce dernier s'occupera de tout ! L'utilisation d'un ORM me permet d'oublier mon côté "administrateur de base de données". J'oublie les 
+requêtes SQL, pour penser objet, tout simplement !
+
+<h3>Mes données sont des objets</h3>
+
+Grâce à un ORM tel que Doctrine2, je serai capable d'invoquer une méthode comme $user->getCommentaires() déclenchant la bonne requête, 
+récupérant tous les commentaires postés par mon utilisateur, et me retournant un tableau d'objets de type Commentaire que je pourrai 
+afficher sur la page de profil de mon utilisateur, par exemple. Cela commence à devenr intéressant...
+
+Au niveau du vocabulaire, un objet dont je confie l'enregistrement à un ORM s'appelle une <strong>entité</strong> (<em>entity</em> en angalis).
+On dit également <strong>persister</strong> une entité, plutôt qu'enregistrer une entité. 
+
+<h2>II./ Crer une première entité avec Doctrine2</h2>
+<h3>1.) Une entité, c'est juste un objet</h3>
+
+Grâce aux annotations (entre autres), je vais fournir à l'ORM toutes les informations relatives à mes entités : le type des attributs, 
+leurs valeurs, leurs caractéristiques, etc. Et tout cela afin que l'ORM puisse enregistrer dans ma base de données mes entités... euh, les 
+persister.
+
+Voici à quoi pourrait ressembler l'objet <strong>Advert</strong> annoté de ma plateforme d'annonces :
+
+Réf <a href="Advert.php">Advert.php</a>
+
+Avec ces annotations, Doctrine2 dispose des infos nécessaires pour utiliser mon objet, créer la table correspondante, l'enregistrer, définir
+un identifiant (id) en auto-incrément, nommer les colonnes, etc. Ces infos se nomment les <strong><em>metadata</em></strong> de mon entité. 
+Cette action consistant à rajouter des <em>metadata</em> à mon objet Advert s'appelle <strong>mapper</strong> l'objet Advert. C'est-à-dire
+faire le lien entre mon objet et la représentation physique qu'utilise Doctrine2 (une table SQL).
+
+Note : bien qu'on utilisera des annotations tout au long de ce cours, il existe d'autres moyens de définir des metadatas d'une entité : en
+YAML, en XML et en PHP. Si cela m'intéresse je trouverai plus plus d'informations sur la définition des metadata via les autres moyens dans
+le <a href="https://symfony.com/doc/master/doctrine.html" target="_blank">chapitre Doctrine2 de la docu Symfony</a>.
+
+<h3>2.) Générer une entité : le générateur à la rescousse</h3>
+
+Il est possible et même souhaitable de générer les entités avec la console grâce aux commandes Symfony. 
+
+Attention : Il faut créer une base de données avant de lancer les commandes qui vont suivre : en effet, je vais pouvoir lancer les commandes
+provenant de DoctrineBundle, la librairie vérifie la connexion à la base de données configurée. Si la base de données n'existe pas, je ne 
+pourrai malheureusement pas lancer les prochaines commandes. 
+Il me faut donc me rendre dans le fichier <strong>app/config/parameters.yml</strong> et adapter les paramtètres propres à ma base de données
+(utilisateur, mot de passen, nom de base de données...), puis je lance la commande de création de la base de données : 
+<strong>
+	C:\MAMP\htdocs\Symfony>php bin/console doctrine:database:create
+</strong>
+Je m'assure bien sûr que le serveur de base de données est bien lancé.
+
+Commençons par la génération de mon entité en tapant la commande suivante et je suis le guide :
+<strong>
+	C:\MAMP\htdocs\Symfony>php bin/console doctrine:generate:entity
+</strong>
+<h5>i./ Première étape : je tape le nom de l'entité sous le format NomBundle:NomEntité.</h5>
+Dans mon cas, ce sera donc <strong>OCPlatformBundle:Advert</strong>
+<h5>ii./ Configuration : choix du format (yml, xml, php ou annotation)</h5>
+<h5>iii./ Définition d'un champ</h5>
+Doctrine2 ajoute automatiquement l'id, de ce fait, pas besoin de le redéfinir ici. On entre donc le nom du champ <strong>date</strong>
+<h5>iv./ Définition du type du champ</h5>
+<h5>v./ Le champ est-il facultatif ?</h5>
+<h5>vi./ Le champ est-il unique</h5>
+<h5>vii./ Je recommence ces trois dernières étapes pour les autres champs aussi</h5>
+
+Et voilà, Symfony a tout généré, même les getters et les setters, sans parler des annotations.
+
+Note : je peux faire tout cela manuellement.
+
+<h3>3.) Affiner mon entité avec de la logique métier</h3>
+
+Bref. L'avantage de mettre la logique dans l'entité même est que je suis sûr de réutiliser cette logique partout dans mon application. Il est
+bien plus propre et pratique par exemple de <strong>$commande->getPrixTotal()</strong> que d'éparpiller à droite et à gauche différentes manières
+de calculer ce prix total. 
+Bien sûr, ces méthodes n'ont pas l'équivalent <strong>setQuelqueChose()</strong>, cela n'aurait pas de sens !
+
+<h4>a./ Valeurs par défaut</h4>
+J'ai aussi parfois besoin de définir une certaine valeur à mes entités lors de la création. Je les définis donc dans le constructeur,
+comme ceci :
+
+Réf <a href="Advert2.php" target="_blank">Advert2.php</a>
+
+<h2>III./ Tout sur le mapping</h2>
+
+Voyons un peu la syntaxe de ces annotations. Ce qui suit se trouve dans le lien suivant, en plus détaillé :
+<a href="http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/basic-mapping.html" target="_blank">
+docu officielle sur le mapping</a>
+
+<h3>1.) L'annotation Entity</h3>
+
+S'applique sur une classe. A placer avant la définition de la classe en PHP. S'écrit comme ceci :
+
+<strong>
+@ORM\Entity
+</strong>
+
+Deux paramètres sont possibles pour cette annotation :
+
+	-<strong>repositoryClass</strong> : il permet de préciser le namespace complet du repository qui gère cette entité. Je donnerai le même nom
+		à mes repositories qu'à mes entités, en les suffixant simplement de "Repository". Pour mon entité Advert, cela
+		donne : <strong>@ORM\Entiry(repositoryClass="OC\Platform\Entity\AdvertRepository")</strong>
+	-<strong>readOnly</strong> : si j'ajoute cette annotation pour mon entité, je demande à Doctrine de ne plus tracker les modifications 
+		qui peuvent survenir à l'objet. Néanmoins, il est toujours possible d'ajouter (méthode <strong>persist()</strong> sur l'entity manager)
+		ou supprimer (méthode <strong>remove()</strong> sur l'entity manager) un objet qui est du type manipulé (en l'occurence Advert)
+		
+Utilisation de l'option <strong>readOnly</strong> :
+
+<strong>
+	@ORM\Entiry(readOnly=true)
+</strong>
+
+Note : Un repository sert à récupérer mes entités depuis la base de données, on en reparle dans un chapitre plus loin dans le cours. 
+
+<h3>2.) L'annotation Table</h3>
+L'annotation <strong>Table</strong> s'applique sur une classe également. C'est une annotation facultative, une entité se définit juste par son
+annotation Entity. Cepandant, l'annotation <strong>Table</strong> permet de personnaliser le nom de la table qui sera créée dans la base 
+de données. Par exemple, on pourrait préfixer notre table <strong>advert</strong> par "oc" :
+
+<strong>
+	@ORM\Table(name="oc_advert")
+</strong>
+
+Elle se positionne juste avant la définition de la classe.
+
+Note : Par défaut, si je ne précise pas cette annotation, le nom de la table créée par Doctrine2 est le même que celui de l'entité. Il faut 
+faire attention car la convention de nommage des tables d'une base de données est de ne pas employer de majuscules. Si je suis sous Windows, 
+cela n'a pas d'importance, mais sous Linux c'est convention doit être strictement respectée.
+
+<h3>3.) L'annotation Column</h3>
+
+L'annotation Column s'applique sur un attribut de classe, elle se positionne juste avant la définition PHP de l'attribut concerné. S'écrit :
+
+<strong>
+@ORM\Column
+</strong>
+
+..prend quelques paramètres, dont le plus important est le type de la colonne.
+
+<h4>4.) Les types de colonnes</h4>
+
+Les types de colonnes que je peux définir en annotation sont des types Doctrine, <strong>et uniquement doctrine</strong>. Je ne dois pas les
+confondre avec leurs homologues SQL ou PHP. Il font la transition des types SQL aux types PHP.
+
+Voici dans le tableau suivant la liste exhaustive des types Doctrine2 disponibles :
+
+<figure>
+	<img src="types_doctrine.png" alt="types Doctrine">
+	<figcaption>Les types Doctrine2</figcaption>
+</figure>
+
+Attention : Les types Doctrine sont sensibles à la casse. Ainsi, le type String n'existe pas, il s'agit du type "string".
+
+Exemple :
+
+<strong>
+@ORM\Column(type="string")
+</strong>
+
+Il existe 7 paramètres, tous facultatifs, que l'on peut passer à l'annotation <strong>Column</strong> afin de personnaliser le comportement. 
+Voici la liste exhaustive dans le tableau suivant :
+
+<figure>
+	<img src="column_parameters.png">
+	<figcaption>Les paramètres de l'annotation Column</figcaption>
+</figure>
+
+Exemple :
+
+<strong>
+	@ORM\Column(type="string", length=255, unique=true)
+</strong>
+
+<h2>Conclusion</h2>
+Je sais maintenant tout ce qu'il faut savoir sur la couche Modèle sous Symfony en utilisant les entités de l'ORM Doctrine2. 
+J'ai intérêt à enregistrer la docu de Doctrine2 dans mes favoris, car c'est une bibliothèque très large, et ce cours ne couvre donc pas tout.
+<a href="http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/index.html" target="_blank">Docu Doctrine2</a>
+Attention: Doctrine étant une bibliothèqe totalement indépendante de Symfony, sa documentation fait référence à ce type d'annotation :
+/** 
+ * @Entity 
+ */
+...il faut impérativement l'adapter à mon projet Symfony, en préfixant toutes les annotations par "ORM\" comme plus haut. Car dans
+mes entités, c'est le namespace ORM que je charge. Ainsi, l'annotation @Entity n'existe pas pour moi, c'est @ORM qui existe (et tous ses 
+enfants : @ORM\Entity, @ORM\Table, etc.).
+
+<h2>En résumé</h2>
+
+Le rôle d'un ORM est de se charger de la persistance de mes données : je manipule des objets, et lui s'occupe de les enregistrer en base de
+données.
+L'ORM par défaut livré avec Symfony est Doctrine2.
+L'utilisation d'un ORM implique un changement de raisonnement : on utilise des objets, et on raisonne en POO. C'est au développeur de s'adapter
+à Doctrine2, et non l'inverse !
+Une entité est, du point de vue PHP, un simple objet. Du point de vue de Doctrine, c'est un objet complété avec des informations du mapping 
+qui lui permettent d'enregistrer correctement l'objet en base de données.
+Une entité est, du point de vue de mon code, un objet PHP qui correspond à un besoin, et indépendant du reste de mon application.
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

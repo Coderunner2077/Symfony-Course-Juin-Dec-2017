@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Convertir les paramètres de requêtes</title>
+</head>
+<body>
+<div class="container text-justify">
+													<h1>Convertir les paramètres de requêtes</h1>
+
+<p>L'objectif des <em>ParamConverters</em>, ou "convertisseurs de paramètres", est de me faire gagher du temps et des lignes de code.</p>
+
+<p>Il s'agit de transformer automatiquement un paramètre de route, comme <b>{id}</b> par exemple, en un objet, une entité <b>$advert</b>
+par exemple. Je pourrai même créer mes propres convertisseurs.</p>
+
+<h2>I./ Théorie: pourquoi un ParamConverter ?</h2>
+<h3>1.) Récupérer des entités Doctrine avant même le contrôleur</h3>
+
+<p>Dans mon contrôleur, j'ai une certain duplication de code pour un tas de méthode, du genre :</p>
+
+<pre>// src/OC/PlatformBundle/Controller/AdvertController.php
+
+// …
+
+public function viewAction($id)
+{
+  $em = $this->getDoctrine()->getManager();
+
+  $advert = $em->getRepository('OCPlatformBundle:Advert')->find($id);
+
+  if (null === $advert) {
+    throw new NotFoundHttpException("L'annonce d'id ".$id." n'existe pas.");
+  }
+
+  // Ici seulement mon vrai code…
+
+  return $this->render('OCPlatformBundle:Advert:view.html.twig', array(
+      'advert' => $advert
+  ));
+}
+</pre>
+
+<p>Les convertisseurs de paramètres me permettent de me concentrer uniquement sur le code métier.</p>
+
+<h3>2.) Les ParamConverters</h3>
+
+<p>Je peux créer ou utiliser des ParamConverters qui vont agir juste avant l'appel du contrôleur. Comme son nom l'indique, un ParamConverter
+<em>convertit</em> les paramètres de ma route au format que je préfère. En effet, depuis la route, je ne peux pas tellement agir sur mes
+paramètres. Tout au plus, je peux leur imposer des contraintes via des expressions régulières. Les ParamConverters pallient cette limitation
+en agissant après le routeur, mais avant le contrôleur, pour venir transformer à souhait ces paramètres.</p>
+
+<p>Le résultat de ParamConverter est stocké dans les attributs de requête, c'est-à-dire qu'on peut les injecter dans les arguments
+de l'action du contrôleur.</p>
+
+<h3>3.) Un ParamConverter utile: <b>DoctrineParamConverter</b></h3>
+
+<p>Ce ParamConverter va me convertir mes paramètres directement en entités Doctrine ! L'idée est la suivante: dans le contrôleur, au 
+lieu de récupérer le paramètre de route <b>{id}</b> sous forme de variable <b>$id</b>, on va récupérer directement une entité Advert
+sous la forme d'une variable <b>$advert</b>, qui correspond à l'annonce portant l'id <b>$id</b>.</p>
+
+<p>Et en plus, on veut également que, s'il n'existe pas d'annonce portant l'id <b>$id</b> dans la base de données, une exception 404 soit
+levée. </p>
+
+<h3>4.) Un peu de théorie sur les ParamConverters</h3>
+
+<p class="well">
+Comment fonctionne un ParamConverter ?</p>
+
+<p>Un ParamConverter est en réalité un simple <em>listener</em>, qui écoute l'évènement <b>kernel.controller</b>.</p>
+
+<p>Lors de cet évènement, les listeners ont la possibilité de modifier le Request. Ainsi, le ParamController va lire la signature de la
+méthode du contrôleur pour déterminer le type de variable que je veux. Cela lui permet de créer un attribut de requête du même
+type, à partir du paramètre de la route, que je récupère ensuite dans mon contrôleur.</p>
+
+<p>Pour déterminer le type de variable que je veux, le ParamConverter a deux solutions. La première consiste à regarder la
+signature de la méhode du contrôleur, ie le type que je définis dans les arguments :</p>
+
+<pre>public function testAction(Advert $advert)</pre>
+
+<p>Ici, le type est Advert, devant le nom de la variable. Le ParamConverter sait alors qu'il doit créer une entité de classe
+<b>Advert</b>.</p>
+
+<p>La seconde solution consiste à utiliser une annotation <b>ParamConverter</b>, ce qui nous permet de définir nous-mêmes les
+informations dont il a besoin, cela permet plus de flexibilité. </p>
+
+<p>Au final, dans mon contrôleur, j'ai en plus du paramètre original de la route (<b>$id</b>) un nouveau paramètre
+(<b>$advert</b>) créé par mon ParamConverter qui s'est exécuté avant mon contrôleur. Et bien entendu, il sera possible de 
+créer mes propres ParamConverters !</p>
+
+<h2>II./ Pratique: utilisation des ParamConverters existants</h2>
+<h3>1.) Utiliser le ParamConverter <b>Doctrine</b></h3>
+
+<p>Ce ParamConverter fait partie du bundle <b>Sensio\FrameworkBundle</b>. C'est un bundle activé par défaut avec la distribution
+standard de Symfony, que j'utilise depuis le début du cours.</p>
+
+<p>Je peux donc me servir du <b>DoctrineParamConverter</b>. Il existe plusieurs façons de l'utiliser, avec ou sans expliciter
+l'annotation. Voyons ensemble les différentes méthodes.</p>
+
+<h4>a./ S'appuyer sur l'id et le typage de l'argument</h4>
+
+<p>C'est la méthode la plus simple, et peut-être la plus utilisée. Reprenons notre route pour afficher une vue: </p>
+
+<b>Réf routing.yml</b>
+
+<p>Une route somme toute classique, dans laquelle figure un paramètre <b>{id}</b>. On a mis une contrainte pour que cet id soit
+un nombre, très bien. Mais le seul point important est que le paramètre s'appelle "id", ce qui est aussi le nom de l'attribut
+de l'entité <b>Advert</b>.</p>
+
+<p class="aw">
+Attention, dans mon cas, les attributs d'Advert sont précédés d'un underscore, il faut donc vérifier ce cela pose problème dans
+le cadre de ce qu'on voit ici.</p>
+
+<p>Maintenant, la seule chose à changer pour utiliser le <b>DoctrineParamConverter</b> est côté contrôleur, où il faut typer
+un argument de la méthode, comme ceci : </p>
+
+<pre>
+// src/OC/PlatformBundle/Controller/AdvertController.php
+
+namespace OC\PlatformBundle\Controller;
+
+use OC\PlatformBundle\Entity\Advert;
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+
+class AdvertController extends Controller
+{
+  public function viewAction(Advert $advert, $id)
+  {
+    // Ici, $advert est une instance de l'entité Advert, portant l'id $id
+  }
+}</pre>
+
+<p>Voilà, mon entité $advert est pleinement opérationnelle. Vite fait, bien fait !</p>
+
+<p>De plus, si je mets dans l'URL un id qui n'existe pas, alors le <b>DoctrineParamConverter</b> lèvera une exception, résultant
+en une page d'erreur 404.</p>
+
+<p class="ai">
+Ici, on a laissé l'argument $id dans la définition de la méthode, mais je peux tout à fait l'enlever. C'était juste pour montrer
+que le ParamConverter <em>crée</em> un attribut de requête, sans toucher à ceux existants.</p>
+
+<p class="ai">
+Quand on parle d'attribut de requête, ce sont les attributs que l'on peut récupérer de cette manière : 
+<b>$request->attributes->get('article')</b>. Ce sont ces attributs que je peux injecter dans le contrôleur en tant qu'arguments
+de la méthode (dans l'exemple précédent, il s'agit de $id et $advert). Mais ce n'est en rien obligatoire, si je ne les injecte
+pas, ils seront tout de même attributs de la requête.</p>
+
+<p>Avec cette méthode, la seule information que le ParamConverter utilise est le typage de l'argument de la méthode, et non
+le nom de l'argument. Par exemple, je pourrais tout à fait avoir ceci :</p>
+
+<pre>public function viewAction(Advert $bidule)</pre>
+
+<p>Cela ne change en rien le comportement, et la variable <b>$bidule</b> contiendra une instance de l'entité <b>Advert</b>.</p>
+
+<p>Une dernière note sur cette méthode. Ici cela a fonctionné car le paramètre de la route s'appelle "id", et que l'entité
+<b>Advert</b> a un attribut <b>$id</b>. En fait, cela fonctionne avec tous les attributs de l'entité <b>Advert</b> ! Cependant,
+pour l'utilisation d'autres attrubuts que l'id, il est conseillé d'utiliser les méthodes suivantes.</p>
+
+<h4>b./ Utiliser l'annotation pour faire correspondre la route et l'entité</h4>
+
+<p>Il s'agit maintenant d'utiliser explicitement l'annotation de <b>DoctrineParamConverter</b>, afin de personnaliser au mieux
+le comportement. Considérons maintenant que j'ai la route suivante :</p>
+
+<pre># src/OC/PlatformBundle/Resources/config/routing.yml
+
+oc_platform_view:
+  path: /advert/{advert_id}
+  defaults:
+    _controller: OCPlatformBundle:Advert:view
+  requirements:
+    advert_id: \d+</pre>
+    
+<p>La seule différence est que le paramètre de la route s'appelle maintenant "advert_id". On aurait pu tout aussi bien l'appeler
+"bidule", l'important est que ce soit un nom qui n'est pas également un attribut de l'entité <b>Advert</b>. Le ParamConverter
+ne peut alors pas faire la correspondance automatiquement, il faut donc le lui dire.</p>
+
+<p>Voici donc l'annotation à utiliser :</p>
+
+<b>Réf AdvertController.php</b>
+
+<p>Il s'agit maintenant d'être un peu plus rigoureux. Dans l'annotation <b>@ParamConverter</b>, voici ce qu'il faut renseigner:</p>
+
+<ul>
+	<li>Le premier argument de l'annotation correspond au nom de l'argument de la variable que l'on veut injecter. Le 
+		<b>advert</b> de l'annotation correspond donc au <b>advert</b> de la méthode.</li>
+	<li>Le deuxième argument correspond aux options à passer au ParamConverter. Ici, j'ai une seule options <b>mapping</b>. Cette
+		option fait la correspondance "paramètre de route" => "attribut de l'entité". Dans notre exemple, c'est ce qui permet de
+		dire au ParamConverter: "le paramètre de route <b>advert_id</b> correspond à l'attribut <b>id</b> de l'<b>Advert</b>"</li>
+</ul>
+
+<p>Le ParamConverter connaît le type d'entité à récupérer (<b>Advert</b>, <b>Category</b>, etc.) en lisant, comme précédemment,
+le typage de l'argument.</p>
+
+<p>Bien entendu, il est également possible de récupérer une entité grâce à plusieurs attributs. Prenons notre entité 
+<b>AdvertSkill</b> par exemple, qui est identifiée par deux attributs: <b>advert</b> et <b>skill</b>. Il suffit pour cela de 
+passer les deux attributs dans l'option <b>mapping</b> de l'annotation, comme suit:</p>
+
+<b>Réf AdvertController2.php</b>
+
+<h4>c./ Utiliser les annotations sur plusieurs arguments</h4>
+
+<p>Grâce à l'annotation, il est alors possible d'appliquer plusieurs ParamConverters à plusieurs arguments. Prenons la route
+suivante :</p>
+
+<pre># src/OC/PlatformBundle/Resources/config/routing.yml
+
+oc_platform_view:
+    path: /advert/{advert_id}/applications/{application_id}
+    defaults:
+        _controller: OCPlatformBundle:Advert:view</pre>
+    
+<p>L'idée est d'avoir deux paramètre de la route, qui vont nous permettre de récupérer deux entités différentes grâce au 
+ParamConverter.</p>
+
+<p>Avec deux paramètres à convertir, il vaut mieux tout expliciter grâce aux annotations, plutôt que de reposer sur une 
+devinette. La mise en application est très simple, il suffit de définir deux annotations, chacune comme on l'a déjà vu. Voici
+comment faire :</p>
+
+<b>Réf AdvertController3.php</b>
+
+<h3>2.) Utiliser le ParamConverter <b>DateTime</b></h3>
+
+<p>Ce ParamConverter est plus simple: il se contente de convertir une date d'un format défini en un objet de type <b>DateTime</b>. 
+Très simple !</p>
+
+<p>Partons donc de cette route par exemple :</p>
+
+<pre># src/OC/PlatformBundle/Resources/config/routing.yml
+
+oc_platform_list:
+    path: /list/{date}
+    defaults:
+        _controller: OCPlatformBundle:Advert:viewList</pre>
+    
+<p>Et voici comment utiliser le convertisseur sur la méthode du contrôleur :</p>
+
+<pre>
+/**
+ * @ParamConverter("date", options={"format": "Y-m-d"})
+ */
+public function viewListAction(\DateTime $date) 
+</pre>
+
+<p>Ainsi, au lieu de simplement recevoir l'argument <b>$date</b> qui vaut une chaîne de caractères du genre "2015-09-20", on
+récupérera directement un objet <b>DateTime</b> à cette date !</p>
+
+<p class="aw">
+Attention, ce ParamConverter fonctionne différemment de celui de Doctrine. En l'occurence, il ne <em>crée</em> pas un nouvel
+attribut de requête, mais <em>remplace</em> l'existant. La conséquence est que le nom de l'argument (ici, <b>$date</b>) 
+<em>doit</em> correspondre au nom du paramètre dans la route (ici, <b>{date}</b>).</p>
+
+<h2>III./ Aller plus loin: créer ses propres ParamConverters</h2>
+<h3>1.) Comment sont exécutés les ParamConverters ?</h3>
+
+<p>Avant de pouvoir créer notre ParamConverter, étudions comment ils sont réellement exécutés.</p>
+
+<p>&Agrave; l'origine de tout, il y a un <em>listener</em>, il s'agit de : <br>
+<b><a href="https://github.com/sensiolabs/SensioFrameworkExtraBundle/blob/master/EventListener/ParamConverterListener.php">
+Sensio\Bundle\FrameworkExtraBundle\EventListener\ParamConverterListener</a></b>. Ce <em>listener</em> écoute l'évènement
+<b>kernel.controller</b>, ce qui lui permet de connaître le contrôleur qui va être exécuté. L'idée est qu'il parcourt les
+différents ParamConverters pour exécuter celui qui convient le premier. On peut synthétiser son comportement par le code 
+suivant: </p>
+
+<pre>
+foreach($converters as $converter) {
+    if($converter->supports($configuration)) {
+        if($converter->apply($request, $configuration))
+		    return;
+    }
+}
+</pre>
+
+<p class="ai">
+On a écrit ce bout de code uniquement pour comprendre le mécanisme interne !</p>
+
+<p>Dans ce code :</p>
+
+<ul>
+	<li>La variable <b>$converters</b> contient la liste de tous les ParamConverters, on voit plus loin comment elle est
+		construite;</li>
+	<li>La méthode <b>$converter->supports()</b> demande au ParamConverter si le paramètre actuel l'intéresse;</li>
+	<li>La variable <b>$configuration</b> contient les informations de l'annotation: le typage de l'argument, les options de 
+		l'annotation, etc.</li>
+	<li>La méthode <b>$converter->apply()</b> permet d'exécuter à proprement parler le ParamConverter.</li>
+</ul>
+
+<p>L'ordre des convertisseurs est donc très important, car si le premier retourne <b>true</b> lors de l'exécution de la méthode
+<b>apply()</b>, alors les éventuels autres ne seront pas exécutés.</p>
+
+<h3>2.) Comment Symfony trouve tous les convertisseurs ?</h3>
+
+<p>Pour connaître les convertisseurs,  Symfony utilise un mécanisme que je connais déjà : le tag des services. En effet, un
+convertisseur est avant tout un service, sur lequel on a appliqué le tag <b>requet.param_converter</b>.</p>
+
+<p>Commençons donc par créer la définition d'un service, que l'on va implémenter en tant que ParamConverter:</p>
+
+<b>Réf services.yml</b>
+
+<p>On a ajouté le tag <b>request.param_converter</b> sur notre service, ce qui permet de l'enregistrer en tant que tel. On n'a
+pas mis de priorité ici, en l'occurence</p>
+
+<h3>3.) Créer un convertisseur</h3>
+
+<p>Créons maintenant la classe du ParamConverter. Un convertisseur doit implémenter l'interface 
+<a href="https://github.com/sensiolabs/SensioFrameworkExtraBundle/blob/master/Request/ParamConverter/ParamConverterInterface.php">
+ParamConverterInterface</a>. Commençons par créer la classe d'un convertisseur <b>JsonParamConverter</b> sur ce squelette,
+que l'on place dans le répertoire <b>ParamConverter</b> du bundle :</p>
+
+<b>Réf JsonParamConverter.php</b>
+
+<p>L'interface ne définit que deux méthodes : <b>supports()</b> et <b>apply()</b>.</p>
+
+<h4>a./ La méthode <b>supports</b></h4>
+
+<p>La méthode <b>supports()</b> doit retourner <b>true</b> lorsque le convertisseur souhaite convertir le paramètre en question,
+<b>false</b> sinon. Les informations sur le paramètre courant sont stockées dans l'argument <b>$configuration</b>, et 
+contiennent :</p>
+
+<ul>
+	<li><b>$configuration->getClass()</b> : le typage de l'argument dans la méthode du contrôleur;</li>
+	<li><b>$configuration->getName()</b> : le nom de l'argument dans la méthode du contrôleur;</li>
+	<li><b>$configuration->getOptions()</b> : les options de l'annotation, si elles sont explicitées (vide bien sûr lorsqu'il
+		n'y a pas d'annotation).</li>
+</ul>
+
+<p>Je dois, avec ces trois éléments, décider si oui ou non le convertisseur compte convertir le paramètre.</p>
+
+<h4>b./ La méthode <b>apply</b></h4>
+
+<p>La méthode <b>apply()</b> doit effectivement créer un attribut de requête, qui sera injecté dans l'argument de la méthode 
+du contrôleur.</p>
+
+<p>Ce travail peut être effectué grâce à ses deux arguments :</p>
+
+<ul>
+	<li>La requête, qui contient entre autres les paramètres de la route courante via 
+		<b>$request->attributes->get('paramètre_de_route')</b>;</li>
+	<li>La configuration, qui contient les informations sur l'argument de la méthode du contrôleur, que nous avons vu juste
+		au-dessus.</li>
+</ul>
+
+<h3>4.) L'exemple de notre <b>JsonParamConverter</b></h3>
+
+<p>Histoire de bien comprendre ce que chaque méthode et variable doit faire, voyons un petit exemple. Imaginons que, d'une 
+façon ou d'une autre, j'ai un paramètre de route qui contient un tableau en JSON, par exemple <b>{"a":1, "b":2,"c":3}</b>. On
+souhaite simplement transformer cette chaîne de caractères JSON en un tableau PHP, via la fonction <b>json_decode</b>.</p>
+
+<p>&Eacute;vitons de convertir tous les paramètres de routes, c'est pourquoi on n'appliquera notre convertisseur que sur
+les paramètres de route ayant pour nom "json".</p>
+
+<h4>a./ La classe</h4>
+
+<p>On a déjà le squelette du service de notre convertisseur, il ne manque plus que l'implémentation concrète. La voici :</p>
+
+<b>Réf JsonParamConverter.php</b>
+
+<h4>b./ Le contrôleur</h4>
+
+<p>Pour utiliser notre nouveau convertisseur, il faut explicitement appliquer le convertisseur via une annotation.</p>
+
+<p>Pourquoi ? Car le listener, lorsqu'il n'y a pas d'annotation pour un argument de contrôleur, n'applique les ParamConverter
+que si l'argument est typé. C'était le cas tout à l'heure avec les convertisseurs Doctrine et DateTime, où nous avions typé
+avec <b>Advert</b> et <b>DateTime</b>. Mais ici, ce n'est pas le cas, on n'attend pas un objet mais un simle tableau PHP.</p>
+
+<p>Ajoutons donc l'annotation nécessaire (simple cas, pas d'option particulière) :</p>
+
+<b>Réf AdvertController4.php</b>
+
+<p class="aw">
+Contrairement à ce qu'il y a dans le cours, j'ai typé en tant que array le paramètre <b>$json</b> dans la méthode du contrôleur.</p>
+
+<p>Pas besoin de renseigner d'options dans l'annotation ici, car on n'a aucune option particulière à passer au ParamConverter. 
+Mais si j'en ai, c'est ici qu'il faut le faire (à garder en tête !).</p>
+
+<p>En créant cette route par exemple :</p>
+
+<pre># app/config/routing_dev.yml
+
+oc_platform_paramconverter:
+    path: /test/{json}
+    defaults:
+        _controller: "OCPlatformBundle:Advert:ParamConverter"</pre>
+    
+<p>...et en accédant à la page <b>/test/{"a":1,"b":2,"c":3}</b>. J'aurai l'affichage de contenu du tableau renvoyé par la fonction 
+<b>print_r</b>.</p>
+
+<p>C'est un exemple très simple, trop simple même. Libre à moi de développer des convertisseurs plus complexes. Il faudra juste
+garder en tête que ce ne sont que des services, dans lequels je peux injecter d'autres services.</p>
+
+<p class="ai">
+Attention, l'exemple est incomplet. Il faudrait une gestion des erreurs, notamment lorsque le paramètre de route n'est pas du
+JSON valide. Il suffirait pour cela de déclencer une exception <b>BadRequestHttpException</b> par exemple. Je peux m'inspirer
+de ceux existants :
+<a href="https://github.com/sensiolabs/SensioFrameworkExtraBundle/blob/master/Request/ParamConverter/DoctrineParamConverter.php">
+DoctrineParamConverter</a> et 
+<a href="https://github.com/sensiolabs/SensioFrameworkExtraBundle/blob/master/Request/ParamConverter/DateTimeParamConverter.php">
+DateTimeParamConverter</a>.</p>
+
+<h2>En résumé :</h2>
+
+<ul>
+	<li>Un ParamConverter me permet de créer un attribut de requête, que je récupère ensuite en argument de mes méthodes
+		de contrôleur.</li>
+	<li>Il existe deux ParamConverters par défaut avec Symfony: <b>Doctrine</b> et <b>DateTime</b>.</li>
+	<li>Il est facile de créer ses propres convertisseurs pour accélerer mon développement.</li>
+	<li>Le code du cours tel qu'il doit être à ce stade du cours est disponible sur la branche 
+		<a href="https://github.com/winzou/mooc-symfony/tree/iteration-20">iteration-20</a> du dépôt Github.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

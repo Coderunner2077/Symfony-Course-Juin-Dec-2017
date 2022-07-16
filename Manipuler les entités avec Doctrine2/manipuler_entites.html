@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Manipuler les entités avec Doctrine2</title>
+</head>
+<body>
+														<h1>Manipuler les entités avec Doctrine2</h1>
+														
+Ce chapitre est dédié à l'apprentissage de la manipulation des entités par Doctrine2. Je verrai d'abord comment synchroniser les entités avec 
+leur représentation en tables que Doctrine utilise, car en effet, à chaque changement dans une entité, il faut bien que Doctrine mette 
+également à jour la base de données. Ensuite, je verrai comment manipuler, supprimer les entités, etc. Enfin, j'aborderai la façon de récupérer
+ses entités depuis la base de données. 
+
+<h2>I./ Matérialiser les tables en base de données</h2>
+
+Avant de pouvoir utiliser mon entité comme il se doit, on doit d'abord créer la table correspondante dans la base de données.
+
+<h3>1.) Créer la table correspondante dans la base de données</h3>
+
+Avant toute chose, il faut vérifier si j'ai bien configuré l'accès à ma base de données dans Symfony. Si ce n'est pas le cas, il suffit d'ouvrir
+le fichier <strong>app/config/parameters.yml</strong> et de mettre les bonnes valeurs aux lignes commençant par <strong>database_</strong> : serveur,
+nom de la base, nom d'utilisateur et mot de passe. Comme ceci :
+
+<strong>
+# app/config/parameters.yml
+
+parameters:
+	database_driver:	pdo_mysql
+	database_host:		localhost
+	database_port:		~
+	database_name:		symfony
+	database_user:		root
+	database_password:	root
+</strong>
+
+Ensuite, direction console. Si je n'ai pas déjà fait, il faut créer la base de données avec la commande :
+
+<strong>
+C:\MAMP\htdocs\Symfony>php bin/console doctrine:database:create
+</strong>
+
+Ensuite, il faut générer les tables à l'intérieur de cette base de données avec la commande suivante :
+
+<strong>
+php bin/console doctrine:schema:update --dump-sql
+</strong>
+
+Cette dernière commande est vraiment performante. Elle compare l'état actuel de la base de données avec ce qu'elle devrait être en tenant compte
+de mes entités. Puis, elle affiche les requêtes SQL à exécuter pour passer de l'état actuel au nouvel état. 
+
+En l'occurence, j'ai créé seulement une entité, donc la différence entre l'état actuel (base de données vide) et le nouvel état (base de données
+avec une table <strong>Advert</strong>) n'est que d'une seule requête SQL : la requête de création de la table. Doctrine m'affiche donc cette
+requête :
+
+<strong>
+CREATE TABLE Advert (
+	id INT AUTO_INCREMENT NOT NULL,
+	date DATETIME NOT NULL,
+	title VARCHAR(255) NOT NULL,
+	author VARCHAR(255) NOT NULL,
+	content LONGTEXT NOT NULL,
+	PRIMARY KEY(id)
+)Engine=InnoDB;
+</strong>
+
+Pour l'instant, rien n'a été fait en base de données, Doctrine m'a seulement affiché la ou les requêtes qu'il s'apprête à exécuter. Pour exécuter
+concrètement cette requête, je lance la commande suivante :
+
+<strong>
+php bin/console doctrine:schema:update --force
+</strong>
+
+Si tout se passe bien, j'ai le droit au <strong>Database schema updated successfully!</strong>. Je peux toujours aller dans phpMyAdmin pour
+admirer/vérifier le résultat.
+
+<h3>2.) Modifier une entête</h3>
+
+Pour modifier une entité, par exemple en lui ajoutant un attribut <strong>$published</strong>, on modifie d'abord directement la classe, 
+comme ceci :
+
+Réf <a href="Advert.php" target="_blank">Advert.php</a>
+
+Ensuite, soit j'écris moi-même le getter et le setter correspondants, soit j'utilise le générateur !
+
+Après la commande <strong>doctrine:generate:entity</strong> pour générer une entité entière, j'ai la commande suivante :
+
+<strong>
+doctrine:generate:entities OCPlatformBundle:Advert
+</strong>
+
+...C'est une commande qui génère les entités en fonction du <em>mapping</em> que Doctrine connaît. Lorsque je fais mon <em>mapping</em> en YAML,
+il peut générer toute mon entité. Mais dans mon cas, je fais le mapping en annotation, alors j'ai déjà défini l'attribut et son annotation. La
+commande va donc générer ce qu'il manque : le getter et le setter !
+
+Note : je peux voir qu'il a sauvegardé l'ancienne version de mon entité dans un fichier nommé <strong>Advert.php~</strong>. Après vérifications,
+je supprime l'une des deux versions.
+
+Maintenant, il ne reste plus qu'à enregistrer ce schéma en base de données. J'exécute donc :
+
+<strong>
+php bin/console doctrine:schema:update --dump-sql
+</strong>
+
+...pour vérifier que la requête est bien :
+
+<strong>
+ALTER TABLE advert ADD published TINYINT(1) NOT NULL
+</strong>
+
+Ce qui est (sans doute) le cas, j'exécute alors la commande suivante : 
+
+<strong>
+php bin/console doctrine:schema:update --force
+</strong>
+
+Et voilà ! Mon entité a un nouvel attribut qui sera persisté en base de données lorsque j'utiliserai.
+
+<h3>A retenir</h3>
+A chaque modification du <em>mapping</em> des entités, ou lorsde l'ajout/suppression d'une entité, il faudra répéter ces commandes 
+<strong>doctrine:schema:update --dump-sql</strong> puis <strong>--force</strong> pour mettre à jour la base de données.
+
+<h2>II./ Enregistrer ses entités avec l'EntityManager</h2>
+<h3>1.) Les services Doctrine2</h3>
+
+Voyons d'abord comment accéder aux fonctionnalités Doctrine2 via leurs sevices.
+
+<h4>a./ Le service Doctrine</h4>
+
+Le service Doctrine gère la persistance de mes objets. Il est accessible depuis le contrôleur comme n'importe quel service:
+
+<strong>
+$doctrine = $this->get('doctrine');
+</strong>
+
+La classe <strong>Controller</strong> de Symfony intègre également un raccourci (permettant l'autocomplétion) :
+
+<strong>
+$doctrine = $this->getDoctrine();
+</strong>
+
+C'est donc ce servce Doctrine qui gère la base de données. Il s'occupe de deux choses :
+
+	-	Les différentes connexions à des bases de données. C'est la partie DBAL de Doctrine2. En effet, je peux tout à fait utiliser plusieurs
+	connexions à plusieurs bases de données différentes. Cela n'arrive que dans des cas particuliers, mais c'est toujours bon à savoir que 
+	Doctrine le gère bien. Le serivce Doctrine dispose donc, entre autres, de la méthode <strong>$doctrine->getConnexion($name)</strong> qui
+	récupère une connexion à partir de son nom. Cette partie DBAL permet à Doctrine2 de fonctionner sur plusieurs types de SGBDR, tels que
+	MySQL, PostgreSQL, etc.
+	-	Les différents gestionnaires d'entités, ou EntityManager. C'est la partie ORM de Doctrine2. Encore une fois, c'est logique, je peux
+	bien sûr utiliser gestionnaires d'entités, ne serait-ce qu'un par connexion ! Le service dispose donc, entre autres, de la méthode dont
+	je me servirai bcp : <strong>$doctrine->getManager($name)</strong> qui récupère un ORM à partir de son nom.
+	
+Attention : Dans la suite de cours, je vais travailler avec une seule entité, donc avec un seul EntityManager, ce qui est le cas par défaut. 
+La méthode <strong>getManager()</strong> permet de récupérer l'EntityManager par défaut en omettant l'argument <strong>$name</strong>. 
+J'utiliserai donc toujours <strong>$doctrine->getManager()</strong> sans argument dans la suite du cours.
+
+Note : si je souhaite utiliser plusieurs EntityManager, je peux me référer à la documentation officielle qui l'exeplique, en cliquant :
+<a href="https://symfony.com/doc/current/doctrine/multiple_entity_managers.html" target="_blank">ici</a>.
+
+<h4>b./ Le service EntityManager</h4>
+
+On vient de le voir, le service qui va m'intéresser vraiment n'est pas doctrine, mais l'EntityManager de Doctrine. Je sais déjà le récupérer 
+depuis le contrôleur :
+
+<strong>
+$em = $this->getDoctrine()->getManager();
+</strong>
+
+Mais comme tout service qui se respecte, je peux y accéder directement via :
+
+<strong>
+$em = $this->get('doctrine.orm.entity_manager');
+</strong>
+
+Mais attention, la première méthode m'assure l'autocomplétion, alors que la deuxième pas forcément (cela dépend en fait de mon IDE).
+
+C'est avec l'EntityManager que l'on va passer le plus clair de mon temps. C'est lui qui permet de dire à Doctrine "Persiste-moi cet objet", c'est
+lui qui va exécuter les requêtes SQL (que l'on ne verra jamais), bref, c'est lui qui fait tout.
+
+La seule chose qu'il ne sait pas faire facilement, c'est récupérer les entités depuis la base de données. Pour faciliter l'accès aux objets, on
+va utiliser des <em>Repository</em>.
+
+<h4>c./ Les repositories</h4>
+
+Les <em>repositories</em> sont des objets, qui utilisent l'EntityManager en coulisses, mais qui sont bien plus faciles et pratiques à utiliser
+de notre point de vue. On parle ici des repositores au pluriel car il en existe <strong>un par entité</strong>. Quand on parle d'un repository
+en particulier, il faut donc toujours préciser repository de quelle entité, afin de savoir de quoi on parle.
+
+On accède à ces repositories de la manière suivante :
+
+<strong>
+$em = $this->getDoctrine()->getManager();
+$advertRepository = $em->getRepository('OCPLatformBundle:Advert');
+</strong>
+
+L'argument de la méthode <strong>getRepository()</strong> est l'entité pour laquelle récupérer le repository. Il y a deux manières de spécifier
+l'entité voulue :
+
+	-	Soit en utilisant le namespace complet de l'entité. Pour mon exemple, ça donnerait : <strong>'OC\PlatformBundle\Entity\Advert'</strong>
+	-	Soit en utilisant le raccourci <strong>NomDuBundle:Nom_de_l'entité</strong>. Pour mon exemple, ce sera donc <b>'OCPlatformBundle:Advert'</b>
+	
+Attention: ce raccourci ne fonctionne que si j'ai mis mes entités dans le namespace <strong>Entity</strong> dans mon bundle.
+
+Ce sont donc ces repositories qui me permettront de récupérer mes entités. Ainsi, pour charger deux entités différentes, il faut d'abord récupérer
+leur repository respectif. Un simple pli à prendre, mais très logique. 
+
+<h3>Schéma de l'organisation de Doctrine2 : </h3>
+<figure>
+	<img src="schema_doctrine.png" alt="Schéma Doctrine2">
+</figure>
+
+<h3>3.) Enregistrer ses entités en base de données</h3>
+<h4>a./ Les grandes lignes</h4>
+L'enregistrement effectif en base de données se fait en deux étapes très simples depuis un contrôleur. Je modifie la méthode <strong>addAction()
+</strong> de mon contrôleur pour faire les tests :
+
+Réf AdvertController.php
+
+==> Etape 1 : On dit d'abord à Doctrine de "persister" l'entité. Cela veut dire qu'à partir de ce moment-là cette entité est gérée par Doctrine. 
+	Cela n'exécute pas encore de requête SQL, ni rien d'autre.
+==> Etape 2 : On dit à Doctrine d'exécuter effectivement les requêtes nécessaires pour sauvegarder les entités qu'on lui a dit de persister
+	précédemment (il fait donc des INSET INTO & Cie)
+==> Ensuite, on peut utiliser $advert->getId() dans la génération de la route, Doctrine2 ayant attribué un id à l'entité
+
+Si la requête SQL effectuée m'intéresse, je peux cliquer sur l'icône tout à droite dans la barre d'outil Symfony en bas de la page, comme le 
+montre la figure suivante :
+
+<figure>
+	<img src="sql_profiler.png" alt="Voir requête avec profiler">
+	<figcaption>Ma page e exécuté 3 requêtes en l'occurence</figcaption>
+</figure>
+
+J'arrive alors dans la partie Doctrine de <em>profiler</em> de Symfony, et je peux voir les différentes requêtes SQL exécutées par Doctrine. C'est
+très utile pour vérifier la valeur des paramètres, la structure des requêtes, etc. :
+
+<figure>
+	<img src="sql_profiler_bis.png">
+	<figcaption>On voit les requêtes effectuées</figcaption>
+</figure>
+
+On n'a persisté qu'une seule entité ici, mais on peut faire plusieurs persists sur différentes entités avant d'exécuter un seul flush. Le flush
+permet d'exécuter les requêtes les plus optimisées pour enregistrer tous mes persists.
+
+<h4>b./ Doctrine utilise les transactions</h4>
+
+Pourquoi deux méthodes <b>$em->persist()</b> et <b>$em->flush()</b> ? Car cela permet entre autres de profiter de <b>transactions</b>. Imaginons
+que j'ai plusieurs entités à persister en même temps. Par exemple, lorsque l'on crée un sujet sur un forum, il faut enregistrer l'entité
+<b>Sujet</b>, mais aussi l'entité <b>Message</b>, les deux en même temps. Sans transaction, je ferais les deux requêtes séparément. Mais imaginons
+que l'une des deux requêtes échoue : j'aurais par exemple un sujet sans message ! Cela casse ma base de données, car la relation n'est plus 
+respectée.
+
+Avec une transaction, les deux entités sont enregistrées <em>en même temps</em>, ce qui fait que si la 2e échoue, alors la 1re est annulée, et je
+garde une base de données propre.
+
+Concrètement, avec mon EntityManager, chaque <b>$em->persist()</b> est équivalent à dire : "Garde cette entité en mémoire pour l'enregistrer au
+prochain <b>flush()</b>." Et un <b>$em->flush()</b> sert à dire : "Ouvre une transaction et enregistre toutes les entités qui t'ont été données
+depuis le dernier <b>flush()</b>". 
+
+<h4>c./ Doctrine simplifie la vie</h4>
+
+Je dois savoir une chose également : la méthode <b>$em->persist()</b> traite indifféremment les nouvelles entités de celles déjà en base de
+données. Je peux donc lui passer une entité fraîchement créée comme dans mon exemple précédent, mais également une entité que j'aurais récupérée 
+grâce au repository et que j'aurai modifiée (ou non, d'ailleurs). L'EntityManager s'occupe de tout. Exemple :
+
+Réf AdvertController2.php
+
+Doctrine sait lui-même s'il si l'entité à persister est nouvelle ou pas grâce à l'existence ou non de la clé primaire ($id).
+
+Attention : Il faut me rappeler qu'il est inutile de faire un <b>persist()</b> sur une entité récupérée grâce à Doctrine.
+
+Et la cerise sur le gâteau : Doctrine est assez intelligent pour ne pas faire de requête inutile dans le cas où l'entité n'a pas subi de
+modification depuis sa dernière récupération de la base de données.
+
+<h4>d./ Les autres méthodes utiles de l'EntityManager</h4>
+
+En plus des deux méthodes les plus importantes, <b>persist()</b> et <b>flush()</b>, l'EntityManager dispose de quelques méthodes intéressantes.
+Pour voir la liste complète, cliquer <a href="http://www.doctrine-project.org/api/orm/2.5/class-Doctrine.ORM.EntityManager.html" target="_blank">ici
+</a>
+Voici les plus utilisées : 
+
+<b>detach($entity)</b> : annule le <b>persist()</b> effectué sur l'entité en argument. Au prochain flush, aucun changement ne sera donc appliqué
+à l'entité. Voici un exemple :
+
+<b>
+$em->persist($advert);
+$em->persist($comment);
+$em->detach($advert);
+$em->flush(); // Enregistre $comment mais pas $advert
+</b>
+
+<b>clear($nomEntite)</b> : annule tous les <b>persist()</b> déjà effetuées. Si le nom de l'entité est précisé (son namespace complet ou son 
+raccourci), seuls les <b>persist()</b> sur des entités de ce type seront annulés. Sinon, cela revient à faire un <b>detach()</b> sur tous les 
+entités d'un coup.
+
+<b>
+$em->persist($advert);
+$em->persist($comment);
+$em->clear()
+$em->flush(); // N'exécuter rien, car les deux persists() ont été annulés par clear()
+</b>
+
+<b>contains($entite)</b> retourne vrai, si l'entité donné en argument est gérée par l'EntityManager (s'il y a eu un persist() sur l'entité donc).
+Voici un exemple :
+
+<b>
+$em->persist($advert);
+var_dump($em->contains($advert)); // Affiche true
+var_dump($em->contains($comment)); // Affiche false
+</b>
+
+<b>refresh($entite)</b> : met à jour l'entité donnée en argument dans l'état où elle est en base de données. Cela écrase et donc annule tous les
+changements qu'il a pu y avoir sur l'entité concernée. Voici un exemple :
+
+<b>
+$advert->setTitle('Un nouveau titre');
+$em->refresh($advert);
+var_dump($advert->getTitre()); // Affiche "Un ancien titre"
+</b>
+
+<b>remove($entite)</b> : supprime l'entité donnée en argument de la base de données. Effectif au prochain <b>flush()</b>. Exemple :
+
+<b>
+$em->remove($advert);
+$em->flush(); // Exécute un DELETE sur $advert
+</b>
+
+<h2>III./ Récupérer ses entités avec un Repository</h2>
+
+Ici, je vais juste aborder cette notion. Les repositories ne sont qu'un outil pour récupérer mes entités très facilement, j'apprendrai à les 
+maîtriser entièrement. Mais voyons ici comment récupérer une unique entité en fonction de son id.
+
+Il faut d'abord pour cela récupérer le repository de l'entité que je veux. On l'a vu précédemment, voici un rappel : 
+
+<b>
+// depuis un contrôleur
+
+$repository = $this->getDoctrine()
+				   ->getManager()
+				   ->getRepository('OCPlatformBundle:Advert');				   
+</b>
+
+Puis, dans ce repository, il faut utiliser la méthode <b>find($id)</b> qui retourne l'entité correspondnat à son $id. Je vais essayer ce code
+directement <b>viewAction()</b> de mon contrôleur, là où on avait défini en dur un tableau $advert. On pourra ainsi voir l'effet immédiatement :
+
+Réf AdvetController3.php
+
+Je devrais aussi savoir qu'il existe une autre syntaxe pour faire la même chose directement depuis l'EntityManager : 
+
+<b>
+$advert = $this->getDoctrine()->getManager()->find('OCPlatformBundle:Advert', $id);
+</b>
+
+Le premier argument de cette méthode <b>find()</b> d'EntityManager peut être un namespace complet bien entendu.
+
+<h3>En résumé :</h3>
+
+Il faut exécuter la commande <b>doctrine:schema:update</b> pour mettre à jour la base de données et la faire correspondre à l'état actuel de mes
+entités. 
+Avec Symfony, on récupère l'EntityManager de Doctrine2 via le service <b>doctrine.orm.entity_manager</b> ou, plus simplement depuis un contrôleur,
+via <b>$this->getDoctrine()->getManager()</b>.
+L'EntityManager sert à <b>manipuler</b> les entités, tandis que les repositories servent à <b>récupérer</b> les entités.
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

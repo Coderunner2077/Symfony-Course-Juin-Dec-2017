@@ -1,0 +1,23 @@
+# app/config/security.yml
+
+security:
+
+# ...
+
+    firewalls:
+        # ... le firewall dev
+        
+        # Firewall principal pour le reste de notre site
+        main:
+            pattern:       ^/
+            anonymous:     true
+            provider:      main
+            form_login:    
+                login_path: login
+                check_path: login_check
+            logout:  
+                path:       lougout
+                target:     login
+            remember_me:
+                secret:     '%secret%'  # %secret% est un paramètre de parameters (sans guillemets dans le cours...)
+    

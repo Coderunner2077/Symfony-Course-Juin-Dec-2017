@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Utiliser Assetic pour gérer les codes CSS et JS de mon site</title>
+</head>
+<body>
+<div class="container text-justify">
+											<h1>Utiliser Assetic pour gérer les codes CSS et JS de mon site</h1>
+
+<p>La  gestion des ressources CSS et JavaScript dans un site internet  est très important et n'est pas si évidente ! Leur chargement est
+très souvent le point le plus lent pour l'affichage de la page à mes visiteurs, ce n'est donc pas quelque chose à négliger.</p>
+
+<p>Pour m'aider à gérer ces ressources efficacement, Symfony intègre un bundle nommé Assetic qui va s'occuper de tout cela à ma place. Il va
+me permettre d'optimiser au maxiumum le chargement de ces ressources pour mes visiteurs. Ce bundle est presque magique !</p>
+
+<h2>I./ Théorie : entre vitesse et lisibilité, pourquoi choicir ?</h2>
+<h3>1.) &Agrave; propos du nombre de requête HTTP d'une page Web</h3>
+
+<p>Le temps de chargement ressenti d'une page web par un visiteur comprend tout le processus du clic au rendu de la page par le navigateur.
+Ainsi, on y inclut :</p>
+
+<ul>
+	<li>Le temps d'envoi de la requête au serveur lors du clic. On ne peut pas y faire grand-chose, malheureusement.</li>
+	<li>Le temps d'exécution de la page côté serveur, le temps PHP, donc. Pour cela, il faut bien penser son script et essayer de l'optimiser
+		un peu.</li>
+	<li>Le temps d'envoi du code HTML par le serveur au navigateur. On ne peut pas y faire grand-chose non plus.</li>
+	<li>Mais là n'est pas tout: à partir de cette page HTML que le navigateur reçoit, ce dernier doit tout recommencer pour <em>chaque</em>
+		fichier CSS, <em>chaque</em> JavaScript et <em>chaque image</em> !</li>
+</ul>
+
+<p>Donc si ma page contient 5 fichiers CSS, 3 JavaScript et 15 images, cela fait un total de 23 requêtes HTTP à traiter par mon navigateur
+pour m'afficher l'intégralité de la page ! Et pour ces 23 requêtes, il y a les temps d'envoi et de réception qui sont incompressibles et qui
+prennent du temps.</p>
+
+<p>Au final, s'il faut bien sûr optimiser le code PHP côté serveur, la partie <em>front-end</em> qui comprend codes HTML, CSS et JavaScript
+ ainsi que les fichiers images est bien celle qui prend le plus de temps à se charger, vu du visiteur.</p>
+ 
+<h3>2.) Comment optimiser le <em>front-end</em></h3>
+
+<p>L'idée est de réduire les temps incompressibles. Comme ils sont justement incompressibles, il faut que l'on en diminue le nombre. La 
+seule solution est donc de grouper ces fichiers. L'idée est que, au lieu d'avoir cinq fichiers CSS différents, on va mettre tout notre
+code CSS dans un seul fichier. Comme cela, on aura une seule requête au lieu de cinq ! </p>
+
+<p>Mais le problème, c'est que si l'on avait trois fichiers au lie d'un, ce n'était pas pour rien. Chaque fichiers concernait une partie
+de mon site, c'était bien plus lisible. Tout regrouper me générait dans le développement de mes fichiers CSS (<em>idem</em> pour les
+fichiers JavaScript, bien sûr).</p>
+
+<p>C'est là qu'Assetic va intervenir: il va grouper lui-même les fichiers et va me permettre de garde ma séparation !</p>
+
+<h3>3.) Il est aussi possible d'améliorer le temps de chargement</h3>
+
+<p>En effet, transmettre mon unique fichier CSS de plusieurs centaines de lignes, cela prend du temps (temps qui varie en fonction de la
+connexion de mon serveur, de celle du visiteur, etc.). On peut améliorer ce templs en diminuant simplement la taille du fichier.</p>
+
+<p>C'est possible grâce à un outil Java appelé <em>YUI Comporessor</em>, un outil développé par Yahoo!. Cet outil permet de diminuer la 
+taille de mes fichiers CSS, mais surtout de mes fichiers JavaScript, en supprimant les commentaires, les espaces, en raccourcissant le 
+nom des variables, etc. On dit qu'il "minimie" les fichiers (il ne les compresse pas comme un fichier zip). Le code devient bien sûr 
+complètement illisible ! Mais c'est là qu'Assetic intervient de nouveau: il me permet de garder ma version claire lorsque je développe, 
+mais "minimie" les fichiers pour mes visiteurs (en mode prod).</p>
+
+<h3>4.) En action !</h3>
+
+<p>Je peux voir ce que donne l'utilisation d'Assetic sur un vrai site internet en regardant le code source du site 
+<a href="https://www.caissin.fr/">Caissin.fr</a> dans lequel l'auteur de ce cours a utilisé l'Assetic. Le chargement de tous les fichiers
+CSS se fait en 3 lignes :</p>
+
+<pre>
+&lt;link href="//netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css">
+&lt;link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.min.css">
+&lt;link href="/assets/css/style.css">
+</pre>
+
+<p class="ai">
+On n'a pas concaténé les deux premiers fichiers CSS avec nos fichiers CSS car on utilise un CDN. L'idée est qu'on espère que notre 
+visiteur ait déjà ce fichier en cache dans son navigateur, pour qu'il n'ait pas besoin de le charger à nouveau. En effet, s'il a visité
+un autre site utilisant le même CDN avant de venir sur le nôtre, alors son navigateur aura déjà chargé le fichier et celui-ci
+sera en cache.</p>
+
+<p>Ce qui nous intéresse, c'est le dernier fichier, que l'on a nommé <b>style.css</b>. C'est ce fichier qui contient tous mes CSS perso.
+C'est un fichier minifié composé de plusieurs fichiers concaténés en un seul. Bref, ce fichier est très dense, et permet d'optimiser
+le chargement de tous les CSS du site, efficace !</p>
+
+<p>Il en est de même avec le <a href="https://www.caissin.fr/assets/js/script.js">fichier JavaScript</a>.</p>
+
+<h3>Conclusion</h3>
+
+<p>Grâce à Assetic, on peut optimiser très facilement nos scripts CSS/JS. Par exemple, on peut passer de nos huit requêtes pour 500 Ko à 
+seulement 2 requêtes (1 CSS + 1 JS) pour 200 Ko. Le temps d'affichage de la page pour nos visiteurs sera donc bien plus court, et on
+conserve la lisibilité du code côté développeur !</p>
+
+<h2>II./ Pratique : Assetic à la rescousse</h2>
+
+<p>Assetic n'est pas insclus par défaut avec Symfony, il me faut donc l'installer ainsi que ses dépendances.</p>
+
+<h3>1.) Installer Assetic et les bibliothèques de compression</h3>
+
+<p>Commençons par ajouter les dépendances dans notre composer.json :</p>
+
+<pre>
+"require": {
+    "symfony/assetic-bundle": "^2.7.1",
+    leafo/scssphp": "~0.6",
+    "patchwork/jsqueeze": "~1.0"
+}
+</pre>
+
+<p>Et je mets à jour mes dépendances avec un <b>php composer.phar update</b>
+
+<p>Puis, j'ajoute la configuration minimale du bundle AsseticBundle dans mon fichier <b>config.yml</b> :
+
+<pre># app/config/config.yml
+
+assetic:
+    debug:          '%kernel.debug%'
+    use_controller: '%kernel.debug%'
+</pre>
+ 
+<h3>2.) Servir des ressources</h3>
+
+<p>Assetic peut servir au navigateur les ressources que je lui demande.</p>
+
+<h4>a./ Servir une seule ressource</h4>
+
+<p>Dans la vue du layout, je vais y déclarer mes fichiers CSS et JavaScript. Voici comment on déclarait nos fichiers CSS jusqu'à
+maintenant :</p>
+
+<pre>
+{# src/OC/CoreBundle/Resources/views/layout.html.twig #}
+{# ou n'importe quelle vue en réalité ! #}
+
+&lt;link rel="stylesheet" href="{{ asset('bundles/ocplatform/css/main.css') }}" type="text/css" />
+</pre>
+
+<p>Et voici comment pour décharger cette responsabilité à Assetic :</p>
+
+<pre>
+{% stylesheets 'bundles/oc/platform/css/main.css' %}
+	&lt;link rel="stylesheet" href="{{ asset_url }}" type="text/css" />
+{% endstylesheets %}
+</pre>
+
+<p class="ai">
+Au sein de la balise <b>stylesheets</b>, la variable <b>{{ asset_url }}</b> est définie, et vaut l'URL à laquelle le navigateur peut
+récupérer le CSS.</p>
+
+<p class="aw">
+Bien sûr, on considère ici que j'ai un fichier CSS <b>src/OC/PlatformBundle/Resources/public/css/main.css</b></p>
+
+<p class="aw">
+Attention, on utilise ici le fichier CSS déployé dans le répertoire <b>web</b>, et non celui qui se trouve dans le répertoire
+<b>src/OC/PlatformBundle...</b>. Cela signifie que je dois avoir publié mes assets au préalable, grâce à la commande suivante : <br />
+
+<b>php bin/console assets:install</b> <br /><br />
+
+Pour éviter de devoir exécuter cette commande à chaque fois, je peux même faire un lien (une sorte de raccourci), en ajoutant le 
+paramètre <b>assets:install --symlink</b>. Ainsi, le dossier <b>web/bundles/ocplatform</b> pointe en réalité vers 
+<b>src/OC/PlatformBundle/Resources/public</b>. Du coup lorsque je change l'un, je change l'autre ! Sous Windows, je dois lancer 
+l'invite de commande en mode Administrateur pour pouvoir le faire.</p>
+
+<p>Et voici le HTML qu'Assetic a généré avec cette balise :</p>
+
+<pre>&lt;link rel="stylesheet" href="/Symfony/web/app_dev.php/css/519c4f6_main_1.css" type="text/css" /></pre>
+
+<p class="ai">
+Pour l'instant, on reste dans le mode dev. On verra plus loin comment nous occuper du mode prod, qui demande un peu plus d'effort.</p>
+
+<p class="aw">
+Si j'ai une erreur de route concernant Assetic, c'est qu'il faut vider le cache.</p>
+
+<p>En attendant, essayons de comprendre ce code généré. En mode dev, Assetic génère à la volée les ressources, d'où une URL vers un 
+fichier CSS qui passe par le contrôleur frontal <b>app_dev.php</b>. En réalité, c'est bien un contrôleur d'Assetic qui s'exécute car
+le fichier <b>app_dev.php/css/519c4f6_main_1.css</b> n'existe évidemment pas. Ce contrôleur va chercher le contenu du fichier qu'on lui
+a indiqué, puis le retransmet. Pour l'instant, il le retransmet tel quel, mais il sera bien sûr possible d'appliquer des modifications,
+on le verra par la suite.</p>
+
+<p>Et bien sûr, le mécanisme est exactement le même pour mes fichiers JavaScript :</p>
+
+<pre>
+{% javascripts 'bundles/ocplatform/js/main.js' %}
+	&lt;script src="{{ asset_url }}" type="text/javascript">&lt;/script>
+{% endjavascripts %}
+</pre>
+
+<p class="ai">
+Toujours penser à mettre les fichiers JavaScript en toute fin du code HTML, car dès que le navigateur intercepte une déclaration
+de fichier JavaScript, il arrête le rendu de la page, charge le fichier, l'exécute, et ensuite seulement continue le rendu de la page.
+Bref.</p>
+
+<h4>b./ Servir plusieurs ressources regroupées en une</h4>
+
+<p>Cela devient un peu plus intéressant. En plus du fichier <b>main.css</b> (ou tout autre fichier similaire), disons qu'on veut charger
+un deuxième fichier CSS <b>platform.css</b> (ou n'importe quel autre CSS que je souhaite utiliser bien sûr). Avec l'ancienne méthode, on
+aurait écrit une deuxième balise <b>&lt;link></b>, mais voici comment faire avec Assetic :</p>
+
+<pre>
+{% stylesheets 
+    'bundles/ocplatform/css/main.css'
+    'bundles/ocplatform/css/platform.css' %}
+    &lt;link rel="stylesheet" href="{{ asset_url }}" type="text/css" />
+{% endstylesheets %}
+</pre>
+
+<p>On a simplement rajouté la deuxième ressource à charger dans la balise <b>stylesheets</b>. Et voici le rendu HTML :</p>
+
+<pre>
+&lt;link rel="stylesheet" href="/Symfony/web/app_dev.php/css/03b7e21_main_1.css" type="text/css" />
+&lt;link rel="stylesheet" href="/Symfony/web/app_dev.php/css/03b7e21_platform_2.css" type="text/css" />
+</pre>
+
+<p class="well">
+Mais, n'était-il pas censé regrouper les deux ressources en une ?</p>
+
+<p>Si bien sûr... mais en mode prod ! Encore une fois, nous sommes en mode de développement, il est donc inutile de regrouper les ressources
+(on se fiche un peu de la rapidité), Assetic ne le fait donc pas.</p>
+
+<p>Si j'ai plusieurs fichiers CSS dans le répertoire des CSS de mon bundle, il est également possible d'utiliser un joker pour les charger
+tous. Ainsi, au lieu de préciser les fichiers exacts, je peux utiliser le joker <b>"*"</b>, comme ceci : </p>
+
+<pre>{% stylesheets 'bundles/ocplatform/css/*' %}</pre>
+
+<p>Ce qui chargera les fichiers qui sont dans le répertoire, pratique !</p>
+
+<h3>3.) Modifier les ressources servies</h3>
+
+<p>En servant les ressources depuis un contrôleur PHP, Assetic a la possibilité de modifier à la volée tout ce qu'il sert. Cela est 
+possible grâce aux filtres, que l'on peut définir directement dans les balises <b>stylesheets</b> ou <b>javascripts</b>.</p>
+
+<p>Voyons quelques filtres intéressants.</p>
+
+<h4>a./ Le filtre <b>cssrewrite</b></h4>
+
+<p>Si j'ai exécuté le code précédent, j'ai pu me rendre compte qu'il se pose un petit problème lorsque j'utilise les images dans le 
+CSS. En effet, imaginons que mon CSS fait référence aux images via un chemin relatif <b>../img/exemple.png</b>.</p>
+
+<p>Lorsque le fichier CSS était placé dans <b>web/bundles/xxx/css</b>, ce chemin relatif pointait bien vers <b>web/bundles/xxx/img</b>,
+là où sont nos images. Or, maintenant, <em>du point de vue du navigateur</em>, le fichier CSS est dans <b>app_dev.php/css</b>, du coup
+le chemin relatif vers les images n'est plus bon !</p>
+
+<p>C'est ici qu'intervient le filtre <b>cssrewrite</b>. Voici la seule modification à apporter côté vue Twig :</p>
+
+<pre>
+{% stylesheets filter='cssrewrite'
+    'bundles/ocplatform/css/main.css'
+    'bundles/ocplatform/css/platform.css' %}
+    &lt;link rel="stylesheet" href="{{ asset_url }}" type="text/css" />
+{% endstylesheets %}
+</pre>
+
+<p>On a juste précisé l'attribut <b>filter</b> à la balise. Ce filtre permet de réécrire tous les chemins relatifs contenus dans les 
+fichiers CSS, afin de prendre en compte la modification du répertoire du CSS.</p>
+
+<p>Puis, j'active le filtre <b>cssrewrite</b> dans la configuration :</p>
+
+<pre># app/config/config.yml
+
+assetic:
+    debug:            '%kernel.debug%'
+    use_controller:   '%kernel.debug%'
+    filters:
+        cssrewrite: ~
+</pre>
+
+<p>J'actualise ma page, je verrai que cela fonctionne très bien ! Le chemin relatif d'accès aux images est devenu : <br />
+<b>../../bundles/ocplatform/img/exemple.png</b>, ce qui est correct.</p>
+
+<h4>b./ Les filtres <b>scssphp</b> et <b>jsqueeze</b></h4>
+
+<p>Ces filtres sont très utiles, ce sont en fait ceux qui "minifient" les fichiers.</p>
+
+<p>Ces outils scssphp et jsqueeze sont ceux qu'on a téléchargé grâce à Composer un peu plus haut, leur code se trouve donc dans le 
+répertoire <b>vendor</b>. Maintenant, direction la configuration de notre application pour activer et configurer ces filtres :</p>
+
+<pre># app/config/config.yml
+
+assetic:
+    debug:          '%kernel.debug%'
+    use_controller: '%kernel.debug%'
+    filters:
+        cssrewrite: ~
+        jsqueeze: ~
+        scssphp:
+            formatter: 'Leafo\ScssPhp\Formatter\Compressed'
+</pre>
+
+<p>Voilà, on vient d'activer les filtres <b>scssphp</b> et <b>jsqueeze</b>, on peut maintenant les utiliser depuis nos vues. Il faudra
+juste ajouter ce filtres dans mes balises :</p>
+
+<pre>
+{% stylesheets filter='cssrewrite, scssphp'
+    ... %}
+</pre>
+
+<p>Et de même pour les fichiers JavaScript :</p>
+
+<pre>
+{% javascripts filter='jsqueeze'
+    ... %}
+</pre>
+
+<p>Et voilà, je peux tester le rendu !</p>
+
+<p>Mais... on est toujours en mode dev et les fichiers CSS et JS sont devenus illisibles pour un éventuel débogage ! Heureusement, j'ai
+la possibilité de dire qu'un filtre ne s'applique pas en mode dev. Il suffit de mettre un point d'interrogation devant :</p>
+
+<pre>
+{% stylesheets filter='?scssphp' 
+    ... %}
+</pre>
+
+<p>Ainsi, ce filtre ne s'appliquera qu'en mode prod, tout comme le groupement des fichiers en un seul.</p>
+
+<p>Au final, notre mode dev n'a pas changé d'un poil, on garde nos différents fichiers et ces derniers sont lisibles, mais le mode prod
+a reçu toutes les optimisations : regroupement des fichiers ainsi que "minification".</p>
+
+<h3>4.) Gestion du mode prod</h3>
+
+<p>Pour l'instant, en mode prod, mes fichiers CSS et JS ne sont pas chargés, car on n'a pas encore fini notre mise en place.</p>
+
+<h4>a./ Comprendre Assetic</h4>
+
+<p>Pour comprendre pourquoi la gestion du mode prod demande un effort supplémentaire, je dois comprendre la manière dont Assetic fonctionne.
+Lorsque l'on utilise les balises <b>{% stylesheets %}</b> et <b>{% javascripts %}</b>, le code HTML généré en mode prod est le suivant 
+(je regarde le code source de mes pages HTML) :</p>
+
+<pre>&lt;link rel="stylesheet" href="/Symfony/web/css/cd91cad.css" type="text/css" /></pre>
+
+<p>Or ce fichier n'existe pas du tout !</p>
+
+<p>Lors du mode dev, on l'a vu, Assetic passe directement par un contrôleur pour générer à la volée nos ressources. Mais évidemment,
+"minifier" et regrouper des fichiers à la volée et ce pour chaque requête, cela prend beacoup de temps. Si en mode dev on peut se le
+permettre, on ne le peut pas en mode prod !</p>
+
+<p>Du coup, l'astuce pour le mode prod est d'exporter en dur, une bonne fois pour toutes, les fichiers CSS et JS dont on a besoin. Ainsi,
+en mode prod, le fichier <b>/css/cd91cad.css</b> (dans mon cas) existera en dur, Assetic n'interceptera pas l'URL, et mon serveur web
+(souvent Apache) va envoyer directement le contenu du fichier à mes visiteurs. Plus rapide, on ne peut pas !</p>
+
+<p class="ai">
+Maintenant que nous sommes en mode prod, Assetic a bien regroupé toutes nos ressources en une seule. Il n'y a plus qu'un seul fichier
+CSS.</p>
+
+<h4>b./ Exporter ses fichiers CSS et JS</h4>
+
+<p>Pour faire cet export en dur, il faut utiliser une simple commande Assetic :</p>
+
+<pre>php bin/console assetic:dump --env=prod</pre>
+
+<p>Cette commande devrait me ressortir un résultat de ce type :</p>
+
+<pre
+>C:\wamp\www\Symfony>php bin/console assetic:dump --env=prod
+Dumping all prod assets.
+Debug mode is off.
+
+16:13:30 [file+] C:/wamp/www/Symfony/app/../web/css/cd91cad.css</pre>
+
+<p>Cette commande va lire toutes nos vues pour y trouver des balises <b>{% stylesheets %}</b> et <b>{% javascripts %}</b>, puis va
+exporter en dur les fichiers <b>/web/css/XXX.css</b> et <b>/web/js/XXX.css</b>.</p>
+
+<p>Et voilà, maintenant ces fichiers existent réellement et je peux enfin tester le rendu en mode prod !</p>
+
+<p class="aw">
+Attention, exporter nos fichiers en dur est une action ponctuelle. Ainsi, <em>à chaque fois que je modifie mes fichiers d'origine, 
+je dois exécuter la commande</em> <b>assetic:dump</b> pour mettre à jour mes fichiers pour la production ! Il faut également prendre 
+l'habitude, à chaque fois que je déploie en production, de vider le cache et d'exporter les ressources Assetic.</p>
+
+<h3>5.) Et bien plus encore...</h3>
+
+<p>Assetic, c'est une bibliothèque complète qui permet bcp de choses. Je peux également optimiser mes images, et construire une 
+configuration plus poussée. Bref, il ne faut pas hésiter à consulter 
+<a href="https://symfony.com/doc/current/frontend/assetic.html">la documentation offocielle</a>.</p>
+
+<h2>En résumé :</h2>
+
+<ul>
+	<li>Le chargement des fichiers CSS et JS prend bcp de temps dans le rendu d'une page HTML sur le navigateur de mes visiteurs;</li>
+	<li>Assetic permet de regrouper tous mes fichiers CSS ainsi que tous mes fichiers JS, afin de réduire le nombre de requêtes HTTP que
+		doivent faire mes visiteurs pour afficher une page;</li>
+	<li>Assetic permet également de minifier mes fichiers, afin de diminuer leur taille et donc accélérer leur chargement pour mes 
+		visiteurs;</li>
+	<li>Enfin, l'utilisation d'Assetic permet de garder mon confort de développement en local, mes fichiers ne sont ni regroupés, ni
+		minifiés: indispensable pour déboguer !</li>
+	<li>Le code du cours tel qu'il doit être à ce stade est disponible sur la branche 
+		<a href="https://github.com/winzou/mooc-symfony/tree/iteration-22">iteration-22</a> du dépôt de Github.</li>
+</ul>
+
+
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

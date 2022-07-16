@@ -1,0 +1,7 @@
+# src/OC/PlatformBundle/Resources/config/services.yml
+
+services:
+    oc_platform.param_converter.json:
+        class: OC\PlatformBundle\ParamConveter\JsonParamConverter
+        tags:
+            - { name: request.param_converter }

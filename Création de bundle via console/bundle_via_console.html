@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+<pre>
+                                                       Création de bundle via la console
+                                                       
+Dans ce chapitre, je vais créer mon premier bundle, juste histoire d'avoir la structure de base de mon code futur. Et je vais 
+générer ce bundle en utilisant une commande Symfony en console ! L'objectif est de découvrir la console utilement.
+
+<h3>
+I./ Utilisation de la console
+</h3>
+Symfony intègre des commandes disponibles non pas via le navigateur, mais via l'invité de commandes (sous Windows) ou le 
+terminal (sous Linux). Il existe pas mal de commandes qui vont me servir assez souvent lors du développement. Raison de plus pour
+apprendre à utiliser la console.
+
+1.) Sous Windows
+
+Je lance l'invité de commandes et je me place dans le répertoire où j'ai mis Symfony, en utilisant la commande Windows
+<strong>cd</strong> (je me place dans C:\MAMP\htdocs\Symfony)
+
+Je vais exécuter des fichiers PHP depuis cette invité de commandes. En l'occurence, c'est le fichier bin/console que je vais
+exécuter. Pour cela, il faut lancer la commande PHP avec le nom du fichier en argument : 
+
+<strong>php bin/console</strong>.
+
+Mais bon, cette commande ne fait pas grand-chose, à part indiquer les différentes options et commandes disponibles.
+
+Attention : Si je suis en Symfony version 2, alors cet exécutable se trouve dans <strong>app/console</strong> et non
+<strong>bin/console</strong>. 
+
+2.) Sous Linux et Mac
+
+Linux ==> /var/www
+Mac ==> /user/sites
+Même fichier bin/console...
+
+3.) A quoi ça sert ? 
+
+Réponse courte : à me simplifier la vie !
+
+Depuis cette console, je pourrai par exemple créer une base de données, vider le cache, ajouter ou modifer des utilisateurs
+(sans passer par phpMyAdmin !), etc. Mais ce qui m'intéresse dans ce chapitre, c'est <strong>la génération de code</strong>.
+
+En effet, pour créer un bundle, un modèle ou un formulaire, le code de départ est toujours le même. C'est ce code-là que le 
+générateur va écrire pour moi. Que du temps gagné !
+
+4.) Comment ça marche ? 
+
+Comment Symfony, un framework écrit en PHP, peut-il avoir des commandes en console ? 
+
+Je dois savoir que PHP peut s'exécuter depuis le navigateur, mais également depuis la console. En fait, côté Symfony, tout est
+toujours écrit en PHP, il n'y a rien d'autre. Je peux ouvrir le fichier <strong>bin/console</strong> pour m'en
+apercevoir.
+
+Réf bin/console
+
+On peut noter qu'il ressemble beaucoup au contrôleur frontal <strong>app.php</strong>. En fait, il fait presque la même chose, 
+il inclut les mêmes fichiers, et charge également le Kernel. Mais il définit la requête comme venant de la console, ce qui 
+exécute du code différent par la suite. Je pourrai moi aussi écrire du code qui sera exécuté non pas depuis le navigateur
+(comme les contrôleurs habituels), mais depuis la console. Rien ne change pour le code, si ce n'est que l'affichage ne peut
+pas être en HTML bien évidemment.
+
+<h3>
+II./ Le fil rouge de mon cours : une plateforme d'échange
+</h3>
+Dans ce cours, je vais monter de toute pièce une plateforme d'échange. Mon site proposera de poster des annonces de missions
+pour développeurs, designers, etc. Je pourrai conculter ces annonces, les commenter, les chercher. Tous les codes que je trouverai
+dans ce cours s'articuleront autour de ce concept de plateforme d'échange. 
+
+<h3>
+III./ Créer mon bundle
+</h3>
+1.) Tout est bundle
+
+Dans Symfony, chaque partie de mon site est un bundle. Pour créer ma première page, il faut donc d'abord créer mon premier 
+bundle. 
+
+2.) Exécuter la bonne commande
+
+Je dois exécuter la commande suivante :
+
+<strong>php bin/console generate:bundle</strong>
+
+a./ Réutilisation du bundle
+
+Symfony me demande si je compte réutiliser ce bundle, pour l'exemple je vais dire oui, cela me permettra donc d'avoir un
+bundle plus complet.
+
+Je réponds donc par <strong>yes</strong>
+
+b./ Choisir le namespace
+
+Symfony me demande ensuite le namespace de mon bundle.
+
+Je peux nommer mon namespace comme bon me semble, il faut juste qu'il se termine par le suffixe "Bundle" . Par convention, 
+on le décompose en trois parties. Je nommerai mon namespace :
+
+<strong>OC\PlatformBundle</strong>
+
+Explications : 
+
+	-	"OC" est le namespace racine : il me représente moi ou mon entreprise. Je peux mettre mon pseudo, le nom de mon site, 
+			celui de mon entreprie, etc. c'est un nom arbitraire
+	-	"Platform" est le nom du bundle lui-même : il définit ce que fait le bundle. Ici, je crée une plateforme d'échange. Je
+			vai donc simplement l'appler "Platform"
+	-	"Bundle" est le suffixe obligatoire
+	
+J'entre donc dans la console <strong>OC/PlatformBundle</strong>, avec des slashs (ou des barres obliques en français) juste
+pour cette fois pour les besoins de la console, mais un namespace contient bien des anti-slashes.
+
+Note : je crée ici un bundle Platform, et non App ou Core. Cela signifie que je veux à terme pouvoir le partager entre plusieurs
+applications. 
+
+c./ Choisir le nom
+
+Symfony me demnade le nom de mon bundle.
+
+Par convention, on nomme le bundle de la même manière que le namespace, sans les slashes. On a donc : OCPlatformBundle.
+C'est ce que Symfony me propose par défaut (la valeur entre les crochets), j'appuye donc simplement sur Entrée. Ce nom est
+à retenir pour la suite.
+
+d./ Choisir la destination
+
+Symfony me demande l'endroit où je veux que les fichiers soient générés. 
+Par convention, comme on l'a vu, je place mes bundles dans le répertoire <strong>/src</strong>. C'est ce que Symfony propose
+d'ailleurs.
+
+e./ Choisir le format de configuration
+
+Symfony me demande sous quelle forme je veux configurer mon bundle. Il s'agit simplement du format de la configuration, que je
+ferai plus tard. Il existe plusieurs moyens comme je peux le voir : 
+
+<strong>YAML, XML, PHP ou Annotations</strong>
+
+Je vais utiliserle YAML (<strong>yml</strong>) ici, car il est bien adapté pour un bundle. Mais j'utiliserai les annotations pour
+mes futurs modèles par exemple. 
+
+J'entre donc <strong>yml</strong>
+
+f./ Le tour est joué !
+
+Avec toutes mes réponses, Symfony est capable de générer la structure du bundle que je veux. 
+
+Note : je peux déjà aller sur <em>http://localhost/Symfony/web/app_dev.php/</em>, le bundle est déjà opérationnel.
+
+Mais il n'y a pas de toolbar par contre... 
+
+En fait, c'est normal puisque la toolbar est un petit bout de code que rajoute Symfony à chaque page... contenu la balise &lt;/body>.
+Or, sur cette page, je peux affcher la source depuis mon nivagateur, il n'y a aucune balise HTML. 
+
+Pour l'activer, rien de plus simple, je vais rajouter une toute petite structure HTML. Pour cela, j'ouvre le fihier suivant :
+
+<strong>src/OC/PLateformBundle/Resources/views/Default/index.html.twig</strong>.
+
+C'est la vue utilisée pour cette page. L'extension .twig signifie qu'on utilise le moteur de templates Twig pour gérer les vues.
+On en reparera plus tard. Je vais le changer ainsi : 
+
+Réf index.html.twig
+
+J'actualise la page, et la toolbar s'affiche ! Seule la balise &lt;/body> suffisait, mais quitte à changer autant avoir une 
+structure HTML valide.
+
+3.) Que s'est-il passé ? 
+
+Dans les coulisses, Symfony a fait pas mal de choses, revoyons tout cela en détail.
+
+a./ Symfony a généré la structure du bundle
+
+Dans le répertoire <strong>src/OC/PlatformBundle</strong>, je peux voir tout ce que Symfony a généré pour moi. Symfony a généré une
+grande partie de la structure du bundle que j'ai vue dans le chapitre précédent.
+
+A savoir : le seul ficheir obligatoire pour un bundle est en fait la classe OCPlatformBundle.php à la racine du répertoire. Je 
+peux l'ouvrir et voir ce qu'il contient : pas très intéressant en soi, juste une déclaration du namespace OC\PlatformBundle et
+une classe (sans aucun code visible) héritant de Bundle. Pour info, je ne modifierai presque jamais ce fichier, je peux passer 
+mon chemin. 
+
+b./ Symfony a enregistré mon bundle auprès du Kernel
+
+Le bundle est créé, mais il faut dire à Symfony de le charger. Pour cela, il faut configurer le noyau (le Kernel) pour qu'il le
+charge. Pour rappel, la configuration de l'application se trouve dans le répertoire /app. En l'occurence, la configuration du
+noyau se fait dans le fichier app/AppKernel.php : 
+
+Réf AppKernel.php
+
+Cette classe permet donc uniquement de définir quels bundles charger pour l'application. Comme je peux le voir, ils sont 
+instanciés dans un simple tableau. Les lignes 10 à 19 définissent les bundles à charger pour l'environnement de production. Les
+lignes 23 à 26 définissent les bundles à charger en plus pour l'environnement de développement.
+
+On peut noter que le générateur du bundle a modifié lui-même ce fichier pour ajouter la ligne 19. C'est ce qu'on appelle 
+"enregistrer le bundle dans l'application". 
+
+Je peux voir également que plein d'autres bundles sont déjà enregistrés, ce sont tous les bundles par défaut qui apportent des
+fonctionnalités de base au framework Symfony. En fait, quand on parle de Symfony, on parle à la fois de ses composants (Kernel,
+Routeur, etc.) et de ses bundles.
+
+c./ Symfony a enregistré mes routes auprès du Routeur
+
+Chaque bundle dispose de ses propres routes. Pour mon bundle fraîchement créé, je peux les voir dans le fichier :
+
+<strong>src/OC/PlatformBundle/Resources/config/routing.yml</strong>
+
+En l'accurence, il n'y en a qu'une seule :
+
+Réf routing.yml
+
+Or, ces routes ne sont pas chargés automatiquement, il faut indiquer au Routeur qu'il y a des routes à chercher pour le nouveau
+bundle. Cela se fait dans la configuration de l'application. Cette configuration se trouve toujours dans le répertoire /app,
+en l'occurence pour les routes il s'agit du fichier app/config/routing.yml :
+
+#app/config/routing.yml
+
+oc_platform:
+	resource: "@OCPlatformBundle/Resources/config/routing.yml"
+	prefix:	  /
+	
+# ...
+
+Ce sont ces lignes qui importent le fichier de routes situé dans mon bundle. Ces lignes ont déjà été générées par le 
+générateur de bundle, vraiment pratique !
+
+Note : C'est parce que ce fichier <strong>routing.yml</strong> était quasiment vide (avant la génération du bundle) que l'on
+avait une erreur "page introuvable" en "prod" sur l'URL /_profiler : comme il n'y a aucune route définie pour cette URL, 
+Symfony m'informe à juste titre qu'aucune page n'existe. Et si le mode "dev" ne me donnait pas d'erreur, c'est parce qu'il charge
+le fichier <strong>routing_dev.yml</strong> et non <strong>routing.yml</strong>. Et dans ce fichier, il y a bien une route
+définie pour /_profiler. Et il y a aussi la ligne qui importe le fichier <strong>routing.yml</strong>, afin d'avoir les routes
+du mode "prod" dans le mode "dev" (l'inverse étant bien sûr faux).
+
+4.) A retenir
+
+Ce qu'il faut retenir de tout cela, c'est que pour qu'un bundle soit opérationnel, il faut : 
+
+	-	Son code source, situé dans <strong>src/Application/Bundle</strong>, et dont le seul fichier obligatoire est la 
+			classe à la racine OCPlatformBundle.php
+	-	Enregistrer le bundle dans le noyau pour qu'il soit chargé, en modifiant le fichier <strong>app/AppKernel.php</strong>
+	-	Enregistrer les routes (si le bundle en contient) dans le Routeur pour qu'elles soient chargées, en modifiant le 
+			fichier <strong>app/Config/routing.yml</strong>
+			
+Ces trois points sont bien sûr effectuées automatiquement lorsqu'on utilise le générateur. Mais je peux tout à fait créer un
+bundle sans l'utiliser, et il faudra alors remplir cette petite <em>checklist</em> manuellement.
+
+Par la suite, tout mon code source sera situé dans des bundles. Un moyen très propre de bien structurer son application.
+
+<h3>
+En résumé :
+</h3>
+Les commandes Symfony disponibles en ligne de commande ont pour objectif de me faciliter la vie en automatisant certaines
+tâches.
+Les commandes sont faites, comme tout Symfony, en PHP uniquement. La console n'est qu'un moyen différent du navigateur pour
+exécuter du code PHP.
+La commande pour générer un nouveau bundle est <strong>php bin/console generate:bundle</strong>.
+
+
+
+
+
+
+
+</pre>
+</body>
+</html>

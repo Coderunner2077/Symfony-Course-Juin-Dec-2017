@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Créer des formulaires avec Symfony</title>
+</head>
+<body>
+<div class="container text-justify">
+													<h1>Créer des formulaires avec Symfony</h1>
+													
+<h2>I./ Gestion des formulaires</h2>
+<h3>1.) L'enjeu des formulaires</h3>
+
+<p>Bref. L'objectif du formulaire Symfony est d'hydrater mon objet. Le composant <b>Form</b> de Symfony est réutilisable hors de Symfony, dans
+d'autres projets. Bref. </p>
+
+<h3>2.) Gestion basique  d'un formulaire</h3>
+<h4>a./ Les bases</h4>
+
+Concrètement, pour créer un formulaire, il me faut deux choses :
+<ul>
+	<li>Un objet (on a toujours notre objet <b>Advert</b>);</li>
+	<li>Un moyen pour construire un formulaire à partir de cet objet, un <b>FormBuilder</b></li>
+</ul>
+
+<p>Pour mes tets, je me place dans l'action <b>addAction()</b> de mon contrôleur Advert et je la modifie comme suit :</p>
+
+<b>Réf AdvertController.php</b>
+
+<p>Pour le moment, ce formulaire va juste s'afficher, sans rien de plus.</p>
+
+<p>Mais avant cette étape, essayons de comprendre le code présenté. Dans un premier temps, on récupère le <b>FormBuilder</b>. Cet objet,
+n'est pas le formulaire en lui-même, c'est un constructeur de formulaire. Bref...</p>
+
+<p>Dans la méthode <b>add()</b> du formBuilder, je fais appel à la constante <b>class</b> de l'objet qui représente le type de champ. C'est
+une constante disponible depuis PHP5.5 qui contient simplement le nom de la classe. </p>
+
+<p>D'autre part, notons la présence du champ de type <b>SubmitType</b>, qu'on a appelé <em>save</em> ici. Ce champ n'est pas <em>mappé</em>
+avec mon objet <b>Advert</b>. Je peux tout aussi bien écrire ce bouton dans la vue directement.</p>
+
+<p>En ce qui concerne, la variable <b>$form</b> passée à la vue, grâce à la fonction Twig <b>{{ form() }}</b>, on peut afficher un 
+formulaire entier en une seule ligne.</p>
+
+<b>Réf Advert/form.html.twig</b>
+
+<p>Dans le formulaire, la date est déjà définie, et la case <b>Published</b> est cochée, parce que les deux attributs correspondants sont définis
+par défaut dans l'objet <b>Advert</b>.</p>
+
+<h4>b./ Ajouter des champs</h4>
+
+<p>Cela se fait avec la méthode <b>add()</b> du <b>FormBuilder</b> et elle prend les arguments suivants: </p>
+<ol>
+	<li>Le nom du champ;</li>
+	<li>Le type du champ</li>
+	<li>Les options du champ, sous forme de tableau</li>
+</ol>
+
+<p>Par type de champ, il faut comprendre le "type sémantique", élaboré par l'objet <b>FormBuilder</b>. 
+
+Voici l'ensemble des types de champ disponibles (avec les liens vers la documentation) :
+
+<table class="table table-striped table-condensed">
+<tr class="warning"><th>Texte</th><th>Choix</th><th>Date et temps</th><th>Divers</th><th>Multiple</th><th>Caché</th></tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/text.html" target="_blank">TextType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/choice.html" target="_blank">ChoiceType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/date.html" target="_blank">DateType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/checkbox.html" target="_blank">CheckboxType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/collection.html" target="_blank">CollectionType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/hidden.html" target="_blank">Type</a></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/textarea.html" target="_blank">TextareaType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/entity.html" target="_blank">EntityType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/datetime.html" target="_blank">DatetimeType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/file.html" target="_blank">FileType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/repeated.html" target="_blank">RepeatedType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/csrf.html" target="_blank">CsrfType</a></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/email.html" target="_blank">EmailType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/country.html" target="_blank">CountryType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/time.html" target="_blank">TimeType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/radio.html" target="_blank">RadioType</a></td>
+	<td></td><td></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/integer.html" target="_blank">IntegerType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/language.html" target="_blank">LanguageType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/birthday.html" target="_blank">BurthdayType</a></td>
+	<td></td><td></td><td></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/money.html" target="_blank">MoneyType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/locale.html" target="_blank">LocaleType</a></td>
+	<td></td><td></td><td></td><td></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/number.html" target="_blank">NumberType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/timezone.html" target="_blank">TimezoneType</a></td>
+	<td></td><td></td><td></td><td></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/password.html" target="_blank">PasswordType</a></td>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/currency.html" target="_blank">CurrencyType</a></td>
+	<td></td><td></td><td></td><td></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/percent.html" target="_blank">PercentType</a></td>
+	<td></td><td></td><td></td><td></td><td></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/search.html" target="_blank">SearchType</a></td>
+	<td></td><td></td><td></td><td></td><td></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/url.html" target="_blank">UrlType</a></td>
+	<td></td><td></td><td></td><td></td><td></td>
+</tr>
+<tr>
+	<td><a href="https://symfony.com/doc/current/reference/forms/types/range.html" target="_blank">RangeType</a></td>
+	<td></td><td></td><td></td><td></td><td></td>
+</tr>
+</table>
+
+<p class="alert alert-warning">Il faudra avoir cette liste en tête: le choix d'un type de champ adapté à l'attribut de l'objet sous-jacent
+est une étape cruciale dans la création d'un formulaire.</p>
+
+<h3>3.) Gestion de la soumission d'un formulaire</h3>
+
+Voici les deux méthodes de l'objet Form gérant le traitement des données :
+<ul>
+	<li><b>handleRequest()</b> : s'assure que la requête est de type POST, et fait le lien entre les variables de type POST et mon formulaire, de 
+	telle sorte que ces variables viennent remplir les champs correspondants du formulaire.  Cette méthode dit au formulaire : « Voici la 
+	requête d'entrée (nos variables de type POST entre autres). Lis cette requête, récupère les valeurs qui t'intéressent et hydrate 
+	l'objet. »</li>
+	<li><b>isValid()</b> : teste les valeurs pour vérifier qu'elles sont valides avec ce que l'objet et le formulaire attendent.
+</ul>
+
+<b>Réf AdvertController2.php</b>
+
+<p class="alert alert-info">Ce code est déjà opérationnel pour ajouter des annonces en base de données.</p>
+
+<p>Si on n'avait pas mis le champ <b>published</b> avec l'option <b>required</b> à false, alors on serait obligé de le cocher pour soumettre,
+le formulaire : c'est en raison du fait que mes champs sont tous requis par défaut, et aussi parce que mon navigateur supporte le 
+HTML5.</p>
+
+<h3>4.) Gérer les valeurs par défaut du formulaire</h3>
+
+<p>L'un des besoins courants dans le formulaire, c'est de mettre des valeurs prédéfinies dans les champs. Cela se fait automatiquement lorsque
+mon objet <b>Advert</b> contient déjà des valeurs.</p>
+
+<h3>5.) Personnaliser l'affichage d'un formulaire</h3>
+
+<p>Jusqu'ici, je n'ai pas du tout personnalisé l'affichage de mon formulaire.</p>
+
+<p>Pour afficher les formulaires, Symfony utilise différents thèmes, qui sont en fait des vues pour chaque type de champ: une vue pour le 
+champ text, une vue pour un champ select, etc. Pour utiliser le thème du framework CSS Bootstrap (cf <b>form-hirizontal</b>), il suffit
+d'ajouter l'option <b>form-themes</b> à la section <b>twig</b> dans mon <b>config.yml</b> :</p>
+
+<pre># app/config/config.yml
+twig:
+    form_themes:
+        - 'bootstrap_3_layout.html.twig'
+</pre>
+
+<p>C'est tout ce qu'il faut pour utiliser ce nouveau thème. J'actualise la page et j'aurai un formulaire <b>form-horizontal</b> que je connais
+bien</p>
+
+<p>Mais utiliser ce nouveau thème ne suffit pas dans bien des cas, il me faut un moyen d'afficher de façon flexible mes champs au sein
+du formulaire. Pour cela, je ne vais pas m'étendre, mais voici un exemple qui me permettra de faire à peu près tout ce que je veux :</p>
+
+<b>Réf form2.html.twig</b>
+
+<p>Dans cette vue, j'ai reproduit la structure exacte de bootstrap utilisée par défaut grâce à l'option <b>form-themes</b> utilisée 
+précédemment. Cet exemple est très illustratif et montre bien comment on peut mettre en forme le formulaire grâce aux fonctions Twig</p>
+
+<p>Quelques précisions néanmoins : </p>
+<ul>
+	<li><b>form_row()</b> : affiche le bloc label + erreurs + champ en même temps, en respectant la vue définie dans le thème du formulaire
+		que j'utilise</li>
+	<li><b>form_rest()</b> : affiche tous les champs manquants du formulaire (dans mon cas, juste le champ CSRF puisque j'ai déjà affiché
+		à la main tous les autres champs)</li>
+	<li><b>form_end()</b> : affiche juste &lt;/form&gt;</li>
+</ul>
+
+<p>Toutes les fonctions Twig que j'ai vues dans cette exemle sont personnalisables. Pour voir comment, je peux consulter la 
+<a href="https://symfony.com/doc/current/forms.html#form-theming" target="_blank">documentation officielle à ce sujet</a> qui me permettra
+d'aller beaucoup plus loin. Cela s'appelle en anglais le <em>form theming</em>.</p>
+
+<div class="well">
+Qu'est-ce que le CSRF ?
+</div>
+
+<p class="alert alert-success">Le champ CSRF, pour <em>Cross Site Request Forgeries</em>, permet de vérifier que l'internaute qui valide le 
+formulaire  est bien celui qui l'a affiché. C'est un moyen de se protéger des envois de formulaire frauduleux 
+(<a href="https://repo.zenk-security.com/Programmation/developpement-web-securite.pdf" class="popoverS" target="_blank" 
+title="Des informations sur la sécurité" data-content="Apparemment, je pourrai trouver ici bien des choses que je voulais savoir concernant la 
+sécurité de mon site web" data-toggle="popover">plus d'informations sur le CSRF</a>). C'est un champ que Symfony rajoute 
+automatiquement à tous mes formulaires, afin de les sécuriser sans même que je me rende compte. Ce champ s'appelle <b>_token</b> dans mes
+formulaires, je peux le voir en affichant le code source HTML.</p>
+
+<h3>6.) Créer des types de champs personnalisés</h3>
+
+<p>Il se peut que j'aie envie d'utiliser un type de champ précis qui n'existe pas par défaut. Heureusement, je ne suis pas coincé, je peux
+m'en sortir en créant mon propre type de champ. Je peux ensuite utiliser ce champ comme n'importe quel autre dans mes formulaires.</p>
+
+<p>Par exemple, pour changer le rendu du champ <b>date</b> avec ses trois <b>select</b> (pour jour, mois, année), je peux me tourner vers
+la solution <b>datepicker</b> de JavaScript... <b>en créant un nouveau type de champ !</b></p>
+
+<p>Pour connaître la démarche, je peux visiter la <a href="https://symfony.com/doc/current/form/create_custom_field_type.html" 
+target="_blank">documentation qui traite ce point</a>.</p>
+
+<h2>II./ Externaliser la définition de ses formulaires</h2>
+
+<p>Naturellement, il faut absolument définir mon formulaire ailleurs que dans mon contrôleur, en sorte d'avoir un formulaire 
+<em>réutilisable</em>. Pour cela, il faut détacher la définition du formulaire dans une classe à part, nommée <b>AdvertType</b> (par 
+convention).</p>
+
+<h3>1.) Définition du formulaire dans AdvertType</h3>
+
+<p><b>AdvertType</b> n'est pas mon formulaire. Comme tout à l'heure, c'est le <em>constructeur de mon formulaire</em>. Par convention, on 
+va mettre tous nos <b>xxxType</b> dans le répertoire <b>Form</b> du bundle. En fait, on va encore utiliser le générateur ici, qui sait
+générer les <b>FormType</b> pour nous, ce qui très bénéfique.</p>
+
+Il faut simplement exécuter la commande suivante :
+
+<pre><b>
+php bin/console doctrine:generate:form OCPlatformBundle:Advert
+</b></pre>
+
+<p>Comme je peux le voir, c'est une commande Doctrine, car c'est lui qui a toutes les informations sur mon objet <b>Advert</b>. Maintenant, 
+je peux aller voir le résultat dans le fichier <b>src/OC/PlatformBundle/Form/AdvertType.php</b>.</p>
+
+<p>On va commencer tout de suite par améliorer ce formulaire. En effet, je peux voir que les types de champ ne sont pas précisés: le 
+composant <b>Form</b> va les deviner à partir des annotations Doctrine qu'on a mis dans l'objet. Ce n'est pas une bonne pratique, car cela
+peut être source d'erreur. C'est pourquoi je vais dès maintenant remettre explicitement les types comme on avait déjà fait dans le 
+contrôleur.</p>
+
+<p class="alert alert-info">J'ai également supprimé les champs <b>image</b> et <b>categories</b>, que je verrai différemment plus loin
+dans ce chapitre.<br>
+Quant à <b>updatedAt, nbApplications</b> et <b>slug</b>, ce sont des attributs internes à notre entité</p>
+
+<p>Comme on peut le voir, on n'a fait que déplacer la construction du formulaire, du contrôleur à une classe externe. Cet <b>AdvertType</b>
+correspond donc à la définition des champs de mon formulaire. Ainsi, si l'on utilise le même formulaire sur plusieurs pages différentes, 
+on utilisera ce même <b>AdvertType</b>. Fini le copier-coller</p>.
+
+<p>Il faut se rappeler qu'un formulaire se construit autour d'un objet. Ici, on a indiqué à Symfony quelle était la classe de cet objet 
+grâce à la méthode <b>configureOptions()</b>, dans laquelle on a défini l'option <b>data_class</b> (en argument de 
+<b>$resolver->setDefaults()</b> appelé à l'intérieur de cette méthode).</p>
+
+<h3>2.) Le contrôleur épuré</h3>
+
+<p>Avec cet <b>AdvertType</b>, la construction du formulaire côté contrôleur s'effectue grâce à la méthode <b>create()</b> du service
+<b>form.factory</b> (et non plus <b>createBuilder()</b>). Cette méthode utilise le composant <b>Form</b> pour construire un formulaire
+à partir du <b>AdvertType::class</b> passé en argument. On utilise le même mécanisme qu'avec les types de champ natifs. Enfin, depuis le
+contrôleur, on récupère donc directement un formulaire, on ne passe plus par le constructeur de formulaire comme précédemment :</p>
+
+<pre><b>// dans le contrôleur
+
+$advert = new Advert();
+$form = $this->get('form.factory')->create(AdvertType::class, $advert);
+</b></pre>
+
+<p>En effet, si l'on a donné la peine de créer un objet à l'extérieur du contrôleur, c'est pour que contrôleur soit plus simpe. C'est
+réussi ! </p>
+
+<p>Finallement, en utilisant cette externalisation et en supprimant les commentaires, voici à quoi ressemble la gestion d'un formulaire
+dans Symfony: </p>
+
+<b>Réf AdvertController3.php</b>
+
+<p class="alert alert-info">
+Si je trouve que faire <b>$form = $this->get('form.factory')->create(AdvertType::class, $advert)</b> est trop long, je peux utiliser un
+raccourci très convenable du contrôleur comme ceci :<br>
+<b>$form = $this->createForm(AdvertType::class, $advert);</b>
+</p>
+
+<h2>III./ Les formulaires imbriqués</h2>
+<h3>1.) Intérêt de l'imbrication</h3>
+
+<div class="well">
+	Pourquoi imbriquer des formulaires ?
+</div>
+
+<p>C'est souvent le cas lorsque j'ai des relations entre mes objets : je souhaite ajouter un objet A, mais également un autre objet B qui est
+lié au premier. Exemple concret: je veux ajouter un client à mon application, mon <b>Client</b> est lié à une <b>Adresse</b>, mais je veux
+ajouter l'adresse sur la même page que mon client, depuis le même formulaire. S'il fallait deux pages pour ajouter une adresse puis un
+client, mon site ne serait pas très ergonomique. D'où l'utilité de l'imbrication des formulaires !</p>
+
+<h3>2.) Un formulaire est un champ</h3>
+
+<p>Eh oui, voici tout ce que je dois savoir pour imbriquer des formulaires entre eux. Je considère l'un de mes formulaires comme un champ, et
+j'appelle ce simple champ depuis un autre formulaire ! Voyons donc comme faire cela.</p>
+
+<p>D'abord, je crée le formlaire de mon entité <b>Image</b>. Eventuellement, on peut utiliser le générateur ici :
+
+<pre><b>
+php bin/console doctrine:generate:form OCPlatformBundle:Image
+</b></pre>
+
+<p>En explicitant les types des champs, cela donne ceci :</p>
+
+<b>Réf ImageType.php</b>
+
+<p>Ensuite, il existe deux façons d'imbriquer ce formulaire :</p>
+<ol>
+	<li>Avec une relation simple où l'on imbrique une seule fois un sous-formulaire dans le formulaire principal. C'est le cas le plus 
+		courant, celui de notre entité <b>Advert</b> avec une seule <b>Image</b></li>
+	<li>Avec une relation multiple, où l'on imbrique plusieurs fois le sous-formulaire dans le formulaire principal. C'est le cas d'un
+		<b>Client</b> qui pourrait enregistrer plusieurs <b>Adresse</b></li>
+</ol>
+
+<h3>3.) Relation simple: imbriquer un seul formulaire</h3>
+
+<p>C'est le cas le plus courant, qui correspond à notre exemple de l'<b>Advert</b> et de son <b>Image</b>. Pour imbriquer un seul formulaire
+en étant cohérent avec une entité, il faut que l'entité du formulaire principal (ici, <b>Advert</b>) ait une relation <em>One-To-One</em>
+ou <em>Many-To-One</em> avec l'entité (ici, <b>Image</b>) dont on veut imbriquer le formulaire.</p>
+
+<p>Une fois qu'on sait cela, on peut imbriquer nos formulaires. C'est vraiment simple: je vais dans <b>AdvertType</b> et j'ajoute un champ
+<b>image</b> (du nom de la propriété de notre entité), de type... <b>ImageType</b>, bien sûr !</p>
+
+<b>Réf AdvertType.php</b>
+
+C'est tout ! On peut admirer le résultat à la figure suivante :
+
+<figure>
+	<img src="img/form_with_image.png" alt="Formulaire avec le champ Image">
+	<figcaption>Les champs pour l'image apparaissent</figcaption>
+</figure>
+<br>
+
+<p class="alert alert-info">
+Les champs sont affichés après le bouton Save, ce n'est pas très joli. Pourquoi ? Car on ne les a pas affiché manuellement, ils sont donc
+générés par la fonction <b>form_rest()</b> (les autres ayant été affichés manuellement), soit après le bouton le bouton Save.</p>
+
+<p>Réflechissons bien à ce qu'on vient de faire. D'un côté, on a l'objet <b>Advert</b> qui possède l'attribut <b>image</b>. Cet attribut
+<b>image</b> contient, lui, un objet <b>Image</b>. Il ne peut pas contenir autre chose, à cause du setter associé: celui-ci force l'argument
+à être un objet de la classe <b>Image</b>.</p>
+
+<p>L'objectif du formulaire est donc de venir injecter dans cet attribut <b>image</b> un objet <b>Image</b>, et pas autre chose ! On l'a
+vu au début de ce chapitre, un formulaire de type <b>XxxType</b> retourne un objet de class <b>Xxx</b> (pour être précis, un objet de 
+classe défini dans l'option <b>data_class</b> de la méthode <b>configureOptions()</b>). Il est donc tout à fait logique de mettre dans
+<b>AdvertType</b>, un champ <b>image</b> de type <b>ImageType</b>.</p>
+
+<p>Il faut savoir qu'il est possible d'imbriquer des formulaires à l'infini de cette façon. La seule limitation, c'est de faire quelque chose
+de compréhensible pour mes visiteurs, ce qui est tout de même le plus important.</p>
+
+<p>Faisons un petit apparté Doctrine sur une erreur qui arrive assez souvent. Si jamais lorsque je valide mon formulaire, j'ai une erreur de 
+ce type:</p>
+
+<pre><b>A new entity was found through the relationship 'OC\PlatformBundle\Entity\Advert#image' that was not configured to cascade persist 
+operations for entity:
+OC\PlatformBundle\Entity\Image@000000000579b29e0000000061a76c55. To solve this issue:
+Either explicitly call EntityManager#persist() on this unknown entity or configure cascade persist this association in the mapping for
+example @ManyToOne(..,cascade={"persist"}). If you cannot find out which entity causes the problem implement 
+'OC\PlatformBundle\Entity\Image#__toString()' to get a clue.</b></pre>
+
+<p>...c'est que Doctrine ne sait pas quoi faire de l'entité <b>Image</b> qui est dans l'entité <b>Advert</b>, car je ne lui ai pas dit
+de persister cette entité. Si j'ai bien persisté <b>Advert</b>, je n'ai rien précisé pour <b>Image</b> et Doctrine est un peu perdu. Pour
+corriger cette erreur, il faut dire à Doctrine de persister persister cet objet <b>Image</b>, je suis donc simplement les indications
+du message d'erreur :</p>
+<ul>
+	<li>Soit j'ajoute manuellement un <b>$em->persist($advert->getImage())</b> dans le contrôleur.</li>
+	<li>Soit, et c'est mieux, j'ajoute une option à l'annotation <b>@ORM\OneToOne</b> dans l'entité <b>Advert</b> (c'est ce qu'on a fait
+		dans ce cours depuis le début)</li>
+</ul>
+
+<p>Et lorsque je soumets mon formulaire, l'annonce et l'image sont bien enregistrées en base de données, ce qui veut dire que mon formulaire
+a bien hydraté nos deux entités.</p>
+
+<h3>4.) Relation multiple: imbriquer un même formulaire plusieurs fois</h3>
+
+<p>On imbrique un même formulaire plusieurs fois lorsque deux entités sont en relation <em>Many-To-One</em> ou <em>Many-To-Many</em>.</p>
+
+<p>On va prendre l'exemple ici de l'imbrication de plusieurs <b>CategoryType</b> dans le <b>AdvertType</b> principal. Attention, cela
+veut dire qu'à chaque ajout d'<b>Advert</b>, on aura la possibilité de créer de nouvelles <b>Category</b>. Ce n'est pas le comportement
+classique qui consiste plutôt à sélectionner des <b>Category</b> existantes. Ce n'est pas grave, c'est pour l'exemple, sachant que plus loin
+dans ce chapitre on étudie également la manière de <em>sélectionner</em> ces catégories.</p>
+
+<p>Tout d'abord, créons le formulaire <b>CategoryType</b> grâce au générateur :</p>
+
+<pre><b>php bin/console doctrine:generate:form OCPlatformBundle:Category</b></pre>
+
+<p>Voici ce que cela donne après avoir explicité les champs encore une fois :</p>
+
+<b>Réf CategoryType.php</b>
+
+<p>Maintenant, il faut ajouter le champ <b>categories</b> dans le <b>AdvertType</b>. Il faut pour cela utiliser le type <b>Collection</b>
+et lui passer quelques options, comme ceci :</p>
+
+<b>Réf AdvertType2.php</b>
+
+<p>On a ici utilisé le type de champ <b>CollectionType</b>, qui permet en réalité de construire une collection (une liste) de n'importe quoi. 
+On précise ce "n'importe quoi" grâce à l'option <b>entry_type</b> : le formulaire sait donc qu'il doit créer une liste de <b>CategoryType</b>,
+mais on aurait pu faire une liste de type <b>TextType</b>: le formulaire aurait donc injecté dans l'attribut <b>categories</b> un simple
+tableau de textes (mais ce n'est pas ce que nous voulons évidemment !).</p>
+
+<p>Ce champ de type <b>CollectionType</b> comporte plusieurs options en plus du type. Je noterai les options <b>allow_add</b> et 
+<b>allow__delete</b>, qui autorisent au formulaire d'ajouter des entrées en plus dans la collection, ainsi que d'en supprimer. En effet,
+on pourrait  tout à fait ne pas autoriser ces actions, ce qui aurait pour effet de ne permettre que la modification des <b>Category</b> qui
+sont déjà liées à l'<b>Advert</b></p>.
+
+<p>Assez parlé, testons dès maintenant le résultat. Pour cela, j'actualise la page d'ajout d'annonce. Eh bien, le mot "Categories" est bien
+inscrit, mais il n'y a rien en dessous. Ce n'est pas un bug. C'est bien voulu par Symfony. En effet, comme l'entité <b>Advert</b> liée
+au formulaire de base n'a pas encore de catégories associées, le champ <b>CollectionType</b> n'a encore rien à afficher ! Si on veut
+créer des catégories, il ne peut pas savoir à l'avance combien on veut en créer : 1, 2, 3 ou plus ? </p>
+
+<p>La solution, sachant qu'on doit pouvoir en ajouter à l'infini, et même en supprimer, est d'utiliser JavaScript. Rien que ça !</p>
+
+<p>D'abord, dans la source de la page je pourrai voir une étrange balise &lt;div&gt; que Symfony a rajoutée en dessous du label
+<b>Categorie</b> : à l'intérieur de balise, on peut surtout noter l'attribut <b>data-prototype</b> (personnellement, je ne la vois pas sur
+le site). C'est en fait un attribut (au nom arbitraire) rajouté par Symfony et qui contient ce à quoi doit ressembler le code HTML pour
+ajouter un formulaire <b>CategoryType</b>. Voici son contenu sans les entités HTML :</p>
+
+<b>Réf data-prototype.html</b>
+
+<p>On peut voir qu'il contient les balises &lt;label> et &lt;input>, tout ce qu'il faut pour créer le champ <b>name</b> compris dans 
+<b>CategoryType</b>, en fait. Si ce formulaire avait d'autres champs en plus de "name", ceux-ci apparaîtraient ici également.</p>
+
+<p>Ce template est conçu de telle manière à ce qu'il soit le plus simple possible d'ajouter des champs en JavaScript. Effectivement, on parle 
+de template puisqu'on peut noter la présence de <b>"___name___"</b> à plusieurs reprises. C'est une sorte de variable que nous devrons
+remplacer par des valeurs différentes à chaque fois qu'on ajoute le champ. En effet, un champ de formulaire HTML doit avoir un nom unique,
+donc si on souhaite afficher plusieurs champs pour nos catégories, il faut leur donner des noms différents.</p>
+
+<p>Je vais faire un petit script JavaScript dont le but sera :</p>
+<ul>
+	<li>D'ajouter un bouton <b>Ajouter</b> qui permet d'ajouter à l'infini ce sous-formulaire <b>CategoryType</b> contenu dans l'attribut
+		<b>data-prototype</b></li>
+	<li>D'ajouter pour chaque sous-formulaire, un bouton <b>Supprimer</b> permettant de supprimer la catégorie associée.</li>
+</ul>
+
+<p>Voici donc ce script (que je vais mettre pour l'instant directement dans la vue du formulaire) :</p>
+
+<b>Réf form3.html.twig</b>
+
+<p>Et admirons le résultat : </p>
+
+<figure>
+	<img src="img/form_with_categories.png" alt="Formulaire avec catégories">
+	<figcaption>Formulaires opérationnel avec nos catégories</figcaption>
+</figure>
+
+<p>Ainsi, on a un formulaire opérationnel ! Je peux m'amuser à créer des annonces contenant plein de nouvelles catégories en même temps.</p>
+
+<p>Pour bien visualiser les données que mon formulaire envoie, je peux utiliser le Profiler  en cliquant sur la Toolbar. Dans l'onglet 
+<em>Form</em>, je pourrai trouver le résultat de la figure suivante :</p>
+
+<figure>
+	<img src="img/profiler_with_categories.png" alt="Profiler - formulaire - catégories">
+	<figcaption>La structure de notre formulaire</figcaption>
+</figure>
+
+<p>Jetons également un oeil à l'onglet <em>Request / Response</em>, sur la figure suivante :</p>
+
+<figure>
+	<img src="img/profiler_request.png" alt="Les données soumises par notre navigateur" />
+	<figcaption>Les données soumises par notre navigateur</figcaption>
+</figure>
+
+<p class="alert alert-info">Notons déjà que toutes les données du formulaire sont contenues dans une même variable. En viex PHP, tout mon 
+formulaire serait contenu dans <b>$_POST['advert']</b>. Notons ensuite comment le <b>__name__</b> du prototype a été remplacé par notre 
+JavaScript : simplement par un chiffre commençant par 0. Ainsi, tous nos champs de catégories ont un nom différent: 0, 1, etc.</p>
+
+<h3>5.) Un type de champ très utile: entity</h3>
+<h4>a./ Les bases</h4>
+
+<p>Ce qu'on vient de faire sur l'attribut <b>categories</b> est pour le moins particulier: sur le formulaire d'ajout d'une annonce, on peut
+<b>créer</b> des nouvelles catégories et non <b>sélectionner</b> des catégories déjà existantes. Même si cela n'a rien à voir avec 
+l'imbrication du formulaire, il est important de noter la différence entre les types de champ <b>EntityType</b> et <b>CollectionType</b>.</p>
+
+<p>Le type de champ <b>EntityType</b> est un type assez puissant, je vais m'en apercevoir très vite. Je vais l'utiliser à la place du
+type <b>CollectionType</b> qu'on vient de mettre en place. Je connaîtrai ainsi les deux types, pour pouvoir utiliser celui que je préfère
+le mieux.</p>
+
+<p>Le type <b>EntityType</b> permet de sélectionner des entités. D'un &lt;select> côté formulaire HTML,  j'obiens une ou plusieurs 
+entités côté formulaire Symfony. Testons-le tout de suite, en modifiant le champ <b>categories</b> comme suit: </p>
+
+<b>Réf AdvertType3.php</b>
+
+<p>Je rafraîchis la page, et j'obtiens :</p>
+
+<figure>
+	<img src="img/form_entity.png" alt="Form-Entity">
+	<figcaption>On peut ainsi sélectionner une ou plusieurs catégories</figcaption>
+</figure>
+
+<h3>6.) Les options du type de champ</h3>
+ 
+<p>Alors, quelques explications sur les options de ce type de champ: </p>
+<ul>
+	<li>L'option <b>class</b> définit quel est le type d'entité à sélectionner. Ici, on veut sélectionner des entités <b>Category</b>, on
+		renseigne donc le raccourci Doctrine pour cette entité (ou son namespace complet)</li>
+	<li>L'option <b>choice_label</b> définit comment afficher les entités dans le <b>select</b> du formulaire. En effet, comment afficher
+		une catégorie ? Par son nom ? Son id ? Un mix des deux ? Ce n'est pas à Symfony de le deviner, on lui précise donc grâce à cette
+		option <b>choice_label</b>. Ici, j'ai renseigné <b>name</b>, c'est donc via leur nom qu'on liste les catégories dans le <b>select</b>.
+		Je peux également renseigner un autre attribut (en créant préalablement le getter associé bien sûr).</li>
+	<li>L'option <b>multiple</b> définit qu'on parle ici d'une liste de catégories, et non d'une catégorie unique. Cette option est très
+		importante, car, si je l'oublie, le formulaire (qui retourne une entité <b>Category</b>) et mon entité <b>Advert</b> (qui attend
+		une liste d'entités <b>Category</b>) ne vont pas s'entendre !</li>
+</ul>
+
+<p>Et encore, ce n'est pas fini. Si la fonctionnalité de ce type (sélectionner une ou plusiers entités) est unique, le rendu peut avoir
+quatre formes en fonction des options <b>multiple</b> et <b>expanded</b> :</p>
+
+<figure>
+	<img src="img/entity_options.png" alt="Les options du champ EntityType">
+	<figcaption>Les quatre formes</figcaption>
+</figure>
+<br>
+<p>Par défaut, les options <b>multiple</b> et <b>expanded</b> sont à <b>false</b>.</p>
+
+<h4>b./ L'option <em>query_builder</em></h4>
+
+<p>Comme j'ai pu le constater, toutes les catégories de la base de données apparaissent dans ce champ. Or, parfois, ce n'est pas le comportement
+voulu. Imaginons par exemple un champ où je souhaite afficher uniquement les catégories qui commencent par une certaine lettre (par exemple).
+Tout est prévu: il faut jouer avec l'option <b>query_builder</b>.</p>
+
+<p>Cette option porte bien son nom puisqu'elle permet de passer au champ un QueryBuilder, que je connais depuis la partie sur Doctrine.
+Tout d'abord, créons une méthode dans le repository de l'entité champ (dans notre cas, <b>CategoryRepository</b>) qui retourne le bon
+QueryBuilder, celui qui ne retourne que les annonces publiées :</p>
+
+<b>Réf CategoryRepository.php</b>
+
+<p class="alert alert-warning">
+Attention, cette méthode retourne un QueryBuilder, et non une Query ou les résultats d'une requête comme on a l'habitude de faire.</p>
+
+<p class="alert alert-info">
+Pour que Doctrine utilise  mon nouveau repository, je ne dois pas oublier de rajouter l'option repositoryClass à mon entité Category
+avec l'annotation suivante :<br>
+<b>@ORM\Entity(repositoryClass="OC\PlatformBundle\Repository\CategoryRepository")</b></p>
+
+Il ne reste maintenant qu'à faire appel à cette méthode depuis l'option <b>query_builder</b> grâce à une closure dont l'argument est le
+repository, comme ceci :
+
+<b>Réf AdvertType4.php</b>
+
+<p class="alert alert-info">
+Notons aussi comment on a passé la variable <b>$pattern</b> à la fonction. Celle-ci n'est appelée qu'avec un seul argument, le repository
+de l'entité. Si je veux lui passer d'autres variables, je dois les lui injecter grâce au <b>use($var1, $var2, ...)</b>. Les closures quoi.</p>
+
+<h2>IV./ Aller plus loin avec les formulaires</h2>
+<h3>1.) L'héritage de formulaire</h3>
+
+<p>Faisons un petit point sur l'héritage de formulaire. En effet, mes formulaires, représentés avec les objets <b>XxxType</b> sont de simples
+objets, mais le composant <em>Form</em> a un mécanisme d'héritage dynamique un peu particulier.</p>
+
+<p>L'utilité de l'héritage dans le cadre des formulaires, c'est de pouvoir construire des formulaires différents, mais ayant la même base. Pour
+faire simple, je vais prendre l'exemple des formulaires d'ajout et de modification d'une <b>Advert</b>. Imaginons que le formulaire 
+d'ajout doit comprenne tous les champs, mais que pour l'édition il soit impossible de modifier la date par exemple. Bien sûr, les 
+applications de ce mécanisme vont bien au-delà.</p>
+
+<p>Comme nous sommes en présence de deux formulaires distincts, on va faire deux <b>XxxType</b> distincts: <b>AdvertType</b> pour l'ajout,
+et <b>AdvertEditType</b> pour la modification. Seulement, il est hors de questionde répéter la définition de tous les champs dans le 
+<b>AdvertEditType</b>; tout d'abord c'est long, mais surtout si jamais un champ change, on devra modifier à la fois  <b>AdvertType</b>
+et <b>AdvertEditType</b>, c'est impensable.</p>
+
+<p>On va donc faire hériter <b>AdvertEditType</b> de <b>AdvertType</b>. Le processus est le suivant :</p>
+<ol>
+	<li>Copier-coller le fichier <b>AdvertType.php</b>, et renommer la copie  en <b>AdvertEditType.php</b>;</li>
+	<li>Modifier le nom de la classe <b>AdvertEditType</b></li>
+	<li>Ajouter une méthode <b>getParent()</b> qui retourne la classe du formulaire parent, <b>AdvertType::class</b></li>
+	<li>Replacer la définition manuelle de tous les champs par une simple ligne pour supprimer le champ date: <b>$builder->remove('date')</b></li>
+	<li>Enfin, supprimer la méthode <b>configureOptions()</b> qu'il ne sert à rien d'hériter dans notre cas.</li>
+</ol>
+
+<p>Voilà ce que ça donne :</p>
+
+<b>AdvertEditType.php</b>
+
+<p>Concrètement, la différence entrer l'héritage natif PHP et ce qu'on appelle l'héritage des formulaires réside dans la méthode 
+<b>getParent()</b> qui retourne le formulaire parent. Ainsi, lors de la construction de ce formulaire, le composant <em>Form</em> exécutera
+d'abord la méthode <b>buildForm()</b> du formulaire parent, ici <b>AdvertType</b>, avant d'exécuter celle-ci qui vient supprimer le champ
+date. Au même titre que les types de champs dans la création du formulaire, la valeur du parent peut très bien être <b>TestType::class</b>
+(ou autre): mon champ hériterait donc du champ texte de base.</p>
+
+<p>Maintenant, si j'utilise le formulaire <b>AdvertEditType</b>, je ne pourrai pas modifier l'attribut <b>date</b> de l'entité <b>Advert</b>.
+Objectif atteint ! </p>
+
+<p class="alert alert-info">
+Si j'utilise la même vue  pour les deux formulaires, j'aurai une erreur comme quoi le champ <b>form.date</b> n'existe pas dans la vue pour
+le formulaire d'édition. Pour corriger cela, j'englobe simplement le <b>{{ form_row(form.date) }}</b> d'un 
+<b>{% if form.date is defined %}</b></p>
+
+<h4>A retenir</h4>
+
+<p>Plusieurs choses à retenir dans cet héritage de formulaire :</p>
+<ul>
+	<li>D'une part, si j'ai besoin de plusieurs formulaires: je fais plusieurs <b>XxxType</b> ! Cela ne mange pas de pain, et m'évite
+		de faire du code impropre derrière en mettant des conditions hasardeuses. Le raisonnement est simle: si le formulaire que je veux
+		afficher à mon internaute est différent (champ en moins, champ en plus), alors côté Symfony c'est un tout autre formulaire, qui 
+		mérite son propre <b>XxxType</b>.</li>
+	<li>D'autre part, il faut penser à bien utiliser l'héritage de formulaires pour éviter de dupliquer du code. Si faire plusieurs 
+		formulaires est une bonne chose, dupliquer les champs à droite et à gauche ne l'est pas. Il faut donc centraliser la définition
+		de mes champs dans un formulaire, et utiliser l'héritage pour le propager aux autres</li>
+</ul>
+
+<h3>2.) Construire un formulaire  différemment selon des paramètres</h3>
+
+<p>Un autre simple besoin se fait sentir lors de l'élaboration de formulaires en peu plus complexes que mon simple <b>AdvertType</b>, 
+c'est la modulation d'un formulaire en fonction de certains paramètres.</p>
+
+<p>Par exemple, on pourrait empêcher de dépublier une annonce une fois qu'elle est publiée. Le comportement serait le suivant :</p>
+<ul>
+	<li>Si l'annonce n'est pas encore publiée, on peut modifier sa valeur de publication lorsqu'on modifie modifie l'annonce</li>
+	<li>Si l'annonce est déjà publiée, on ne peut plus modifier sa valeur de publication lorsqu'on modifie l'annonce.</li>
+</ul>
+
+<p>C'est un exemple simple, il faut retenir l'idée derrière qui est de construire différemment le formulaire suivant les valeurs de 
+l'objet sous-jacent. Ce n'est pas aussi évident qu'il n'y paraît, car dans la méthode <b>buildForm()</b> on n'a pas accès aux valeurs
+de l'objet <b>Advert</b> qui sert de base au formulaire ! Comment savoir si l'annonce est déjà publiée ou non ?</p>
+
+<p>Pour arriver à nos fins, il faut utiliser les événements de formulaire. Ce sont des événements que le formulaire déclenche à certains
+moments de sa construction. Il existe notamment l'événement <b>PRE_SET_DATA</b> qui est déclenché juste avant que les champs ne soient
+remplis avec les valeurs de l'objet (les valeurs par défaut donc). Cet événement permet de modifier la structure du formulaire.</p>
+
+<p>Sans plus attendre, voici à quoi ressemble ma nouvelle méthode <b>buildForm()</b> :</p>
+
+<b>Réf AdvertType5.php</b>
+
+<p class="alert alert-success">
+Il y a beacoup de syntaxe dans ce code, mais il est au fond abordable, et me montre les possibilités qu'offrent les événements de formulaire.
+Serais-je capable aussi de mettre en place un système d'événements pour mon formulaire ?</p>
+
+<p>La fonction qui est exécutée par l'événement prend en argument l'événement lui-même, la variable <b>$event</b>. Depuis cet objet
+événement, je peux récupérer d'une part l'objet sous-jacent, via <b>$event->getData()</b>, et d'autre part le formulaire, via 
+<b>$event->getForm()</b>.</p>
+
+<p>Récupérer l'<b>Advert</b> me permet d'utiliser les valeurs qu'il contient, chose qu'on ne pouvait pas faire d'habitude dans la méthode
+<b>buildForm()</b>, qui, elle, est exécutée une fois pour toutes, indépendemment de l'objet sous-jacent. Pour mieux visualiser cette unique
+instance du <b>XxxType</b>, il faut penser à un champ de type <b>CollectionType</b>, que l'on ajoutait de cette manière :</p>
+
+<pre><b>$builder->add('categories', CollectionType::class, array('entry_type' => CategoryType::class));</b></pre>
+
+<p>Avec ce code, on ne crée qu'<em>un seul</em> <b>CategoryType</b>, or celui-ci sera utilisé pour ajouter <em>plusieurs</em> catégories
+différentes. Il est donc normal de ne pas avoir accès à l'objet <b>$category</b> lors de la construction du formulaire, autrement dit
+la construction de l'objet <b>CategoryType</b>. C'est pour cela qu'il faut utiliser l'événement <b>PRE_SET_DATA</b>, qui, lui, est 
+déclenché à chaque fois que le formulaire remplit les valeurs de ses champs par les valeurs d'un nouvel objet <b>Category</b>.</p> 
+
+<p class="alert alert-info">
+Revenons sur la condition <b>if(null === $advert)</b> dans la fonction. En fait, à la 1re création du formulaire, celle-ci exécute sa 
+méthode <b>setData()</b> avec <b>null</b> en argument. Cette occurence de l'événement <b>PRE_SET_DATA</b> ne m'intéresse pas, d'où
+la condition pour sortir de la fonction lorsque <b>$event->getData()</b> vaut <b>null</b>. Ensuite, lorsque le formulaire récupère
+l'objet (<b>$advert</b> dans notre cas) sur lequel se construire, il réexécute sa méthode <b>setData()</b> avec l'objet en argument. C'est
+cette occurence-là qui m'intéresse.</p>
+
+<p class="alert alert-success">
+Il est également possible d'ajouter non pas une simple fonction à exécuter lors de l'événement, mais un service ! Tout cela et bien plus 
+encore est décrit dans la <a href="https://symfony.com/doc/current/form/dynamic_form_modification.html" target="_blank">documentation
+des événements du formulaire</a>. Il faudra absolument me documenter dessus, car c'est cette méthode des événements qui permet  également
+la création des fameuses <em>combobox</em>: deux champs &lt;select> dont le deuxième (par exemple <b>ville</b>) dépend de la valeur
+du premier (par exemple <b>pays</b>).</p>
+
+<h2>V./ Le type de champ File pour envoyer des fichiers</h2>
+
+<p>Dans cette partie, je vais apprendre à envoyer un fichier via le type <b>FileType</b>, ainsi qu'à le persister via les événements
+Doctrine.</p>
+
+<h3>1.) Le type de champ <b>File</b></h3>
+
+<p>Un champ <b>FileType</b> de formulaire ne retourne pas du texte, mais une instance de la classe 
+<b><a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Component/HttpFoundation/File/UploadedFile.php" target="_blank">
+UploadedFile</a></b>. Or, je vais stocker dans la base de données seulement l'adresse du fichier, donc du texte pur. Pour cette raison, 
+il faut utiliser un attribut à part dans l'entité sous-jacente au formulaire, ici <b>Image</b>.</p>
+
+<h4>a./ Préparer l'objet sous-jacent</h4>
+
+<p>J'ouvre donc l'entité <b>Image</b> et j'y ajoute l'attribut <b>$file</b> suivant :</p>
+
+<b>Réf Image.php</b>
+
+<p class="alert alert-info">
+Note : on n'a pas mis d'annotation pour Doctrine: ce n'est pas cet attribut <b>$file</b> que nous allons persister par la suite, on ne met
+donc pas d'annotation. Par contre, c'est bien cet attribut qui servira pour le formulaire, et non les autres.</p>
+
+<h4>b./ Adapter le formulaire</h4>
+
+<p>Passons maintenant au formulaire. J'ai construit un champ de formulaire sur l'attribut <b>$url</b>, dans lequel l'utilisateur devait
+mettre directement l'URL de son image. Maintenant, on veut plutôt lui permettre d'envoyer un fichier depuis son ordinateur.</p>
+
+<p>On va donc supprimer le champ sur <b>$url</b> (et sur <b>$alt</b>, on va pouvor le générer dynamiquement) et en créer un nouveau sur
+<b>$file</b> :</p>
+
+<b>Réf ImageType2.php</b>
+
+<p>Le rendu de mon formulaire est déjà bon :</p>
+
+<figure>
+	<img src="img/file_type.png" alt="Champ pour envoyer un fichier">
+	<figcaption>Champ pour envoyer un fichier</figcaption>
+</figure>
+
+<br>
+<p class="alert alert-info">
+Lorsque j'utilise des formulaires avec des envois de fichiers, je dois préciser l'attribut <b>enctype</b> dans la balise HTML du formulaire.
+Si j'utilise la fonction <b>{{ form_start(form) }}</b> pour générer ma balise <b>&lt;form></b>, alors l'<b>enctype</b> est automatiquement
+rajouté dès que Symfony détecte un champ de type <b>FileType</b>. Sinon, je dois le rajouter à la main.</p>
+
+<p>Bon, par contre évidemment le formulaire n'est pas opérationnel. La sauvegarde du fichier ne se fait pas toute seule !</p>
+
+<h4>c./ Manipuler le fichier envoyé</h4>
+
+<p>Une fois le formulaire soumis, il faut bien évidemment s'occuper du fichier envoyé. L'objet <b>UploadedFile</b> que le formulaire me 
+renvoie simplifie grandement les choses, grâce à sa méthode <b>move()</b>. Créons une méthode <b>upload()</b> dans notre objet <b>Image</b>
+pour s'occuper de tout cela :</p>
+
+<b>Réf Image.php ==> à partir de upload()</b>
+
+<p>Plusieurs choses dans ce code. </p>
+
+<p>D'une part, on a déjà défini le répertoire dans lequel stocker nos images. J'ai mis ici <b>upload/img</b>, ce répertoire est relatif
+au répertoire <b>/web</b>, je peux tout à fait le personnaliser. La méthode <b>getUploadDir()</b> retournera ce chemin relatif, alors que 
+<b>getUploadRootDir()</b> retournera le chemin vers le même fichier, mais en absolu. </p>
+
+<p>D'autre part, la méthode <b>upload()</b> s'occupe concrètement de notre fichier. Elle fait l'équivalent du <b>move_uploaded_file()</b>
+que j'aurais pu utiliser en PHP pur. Ici j'ai choisi pour l'instant de garder le nom du fichier tel qu'il est sur le PC du visiteur, 
+ce n'est évidemment pas optimal.</p>
+
+<p>Enfin, d'un point de vue persitance de notre entité <b>Image</b> dans la base de données, la méthode <b>upload</b> s'occupe de 
+renseigner les deux attributs persistés, <b>$url</b> et <b>$alt</b>. En effet, l'attribut <b>$file</b>, qui est le seul rempli par le 
+formulaire, n'est pas du tout persisté.</p>
+
+<p>Bien entendu, cette méthode ne s'exécute pas toute seule, il faut l'exécuter à la main depuis le contrôleur. Je rajoute donc un appel
+manuel à cette méthode dans <b>addAction()</b>, une fois que le formulaire est valide :</p>
+
+<b>Réf AdvertController4.php</b>
+
+<p class="alert alert-warning">
+Il est impératif d'exécuter la méthode <b>upload()</b> avant de persister l'entité, car sinon les attributs <b>$url</b> et <b>$alt</b>
+ne seront pas définis à l'exécution du <b>flush()</b>, et cela créerait une erreur (ils ne peuvent pas être nuls en base de données).</p>
+
+<p>Normalement, si j'ai bien intégré la notion de "découplage", ce qu'on vient de faire ne devrait pas me plaire. En effet, le contrôleur
+ne devrait pas avoir à agir juste parce qu'on a un peu modifié le comportement de l'entité <b>Image</b>. Imaginons qu'un jour nous 
+oubliions d'exécuter manuellement cette méthode <b>upload()</b> ! Bref, il faut automatiser tout cela en utilisant les événements Doctrine.</p>
+
+<h3>2.) Automatiser le traitement grâce aux événements</h3>
+
+<p>La manipulation du champ de typeFileType que nous venons de faire est bonne, mais son implémentation est juste un peu maladroite. Il 
+faut automatiser cela grâce aux évènements Doctrine. Mais ce n'est pas que de l'esthétisme, c'est impératif pour gérer tous les cas… 
+comme la suppression d'une entitéImage par exemple !</p>
+
+<p>On va également en profiter pour modifier le nom donné au fichier qu'on déplace dans notre répertoireweb/uploads/img. Le fichier va 
+prendre comme nom l'id de l'entité, suffixé de son extension évidemment.</p>
+
+<h4>a./ Quels évènements utiliser ?</h4>
+
+<p>C'est une question qu'il faut toujours se poser consciencieusement, car le comportement peut changer du tout au tout suivant les 
+évènements choisis. Dans notre cas, il y a en réalité quatre actions différentes à exécuter :</p>
+<ul>
+	<li><b>Avant l'enregistrement effectif dans la base de données:</b> il faut remplir les attributs <b>$url</b> et <b>$alt</b> avec les 
+		bonnes valeurs suivant le fichier envoyé. On doit impérativement le faire avant l'enregistrement, pour qu'ils puissent  être 
+		enregistrés	eux-mêmes en base de données. Pour cette action, il faut utiliser les événements :
+		<ul>
+			<li>PrePersist</li>
+			<li>PreUpdate</li>
+		</ul></li>
+	<li><b>Juste après l'enregistrement:</b> il faut déplacer effectivement le fichier envoyé. On ne le fait pas avant, car l'enregistrement 
+		en base de données peut échouer. En cas d'échec de l'enregistrement de l'entité en base de données, il ne faudrait pas se 
+		retrouver avec un fichier orphelin sur mon disque dur. On attend donc que l'enregistrement se fasse effectivement avant de 
+		déplacer le fichier. Pour cette action, il faut utiliser les événements :
+		<ul>
+			<li>PostPersist</li>
+			<li>PostUpdate</li>
+		</ul></li>
+	<li><b>Juste avant la suppression: </b> il faut sauvegarder le nom du fichier dans un attribut non persisté, <b>$filename</b> par
+		exemple. En effet, comme le nom du fichier dépend de l'id, on n'y aura plus accès en <b>PostRemove</b> (l'entité étant supprimé,
+		elle n'a plus d'id), on est donc obligé de le sauvegarder en <b>PreRemove</b>: peu pratique mais obligatoire. Pour cette action,
+		il faut utiliser l'événement:
+		<ul>
+			<li>PreRemove</li>
+		</ul></li>
+	<li><b>Juste après la suppression:</b> il faut supprimer le fichier qui est accocié à l'entité. Encore une fois, on ne le fait pas 
+		avant la suppression, car si l'entité n'est au final pas supprimée, on aurait alors une entité sans fichier. Pour cette action,
+		il faut utiliser l'événement :
+		<ul>
+			<li>PostRemove</li>
+		</ul></li> 
+</ul>
+
+<h4>b./ Implémenter les méthodes des événements</h4>
+
+<p>La méthode est la suivante:</p>
+
+<ul>
+	<li>On éclate l'ancien code de la méthode <b>upload()</b> dans les méthodes:
+		<ul>
+			<li><b>preUpload()</b>: pour ce qui est de la génération des attributs <b>$url</b> et <b>$alt</b>;</li>
+			<li><b>upload()</b> : pour le déplacement effectif du fichier</li>
+		</ul></li>
+	<li>On ajoute une méthode <b>preRemoveUpload()</b> qui sauvegarde le nom du fichier, qui dépend de l'id de l'entité, dans un attribut
+		temporaire</li>
+	<li>On ajoute une méthode <b>removeUpload()</b> qui supprime effectivement le fichier grâce au nom enregistré</li>
+</ul>
+
+<p>Il me faudra ajouter l'attribut (que je nommerai <b>$tempFilename</b>) pour la sauvegarde du nom du fichier. Au final, voici ce que cela 
+donne :</p>
+
+<b>Réf Image2.php</b>
+
+<p>Et voilà, mon upload est maintenant opérationnel !</p>
+
+<p class="alert alert-info">
+Bien sûr, je dois supprimer l'appel à <b>$advert->getImage()->upload()</b> qu'on avait mis à la main dans le contrôleur. Cette ligne
+n'est plus utile maintenant que tout est automatisé.</p>
+
+<p class="alert alert-warning">
+Pour que l'entité <b>Image</b> liée à l'annonce soit supprimée lorsque je supprime l'entité <b>Advert</b>, je dois m'assurer que l'action
+<b>remove</b> soit en cascade.</p>
+
+<p class="alert alert-warning">
+Attention à ne pas laisser la possibilité à mes visiteurs d'envoyer n'importe quel type de fichier sur mon site internet ! Il  est impératif
+d'ajouter une règle de validation <b>@Assert\File</b> pour limiter les types de fichiers, et ne pas laisser une faille de sécurité 
+béante. On aborde les règles de validation dans le prochain chapitre.</p>
+
+<p>Je dois également modifier la vue <b>view.html.twig</b> qui affiche les images. J'ai utilisé <b>{{ advert.image.url }}</b>, mais ce n'est
+plus bon puisque l'on ne stocke plus que l'extension dans l'attribut <b>$url</b>. Et si je ne veux pas m'emmêler les pinceaux avec 
+des concaténations, il serait intéressant d'ajouter une méthode qui renvoie directement l'url de l'image :</p>
+
+<pre><b>// src/OC/PlatformBundle/Entity/Image
+
+public function getWebSrc() {
+	return $this->getUploadDir(). '/'.$this->getId().'.'.$this->getUrl();
+}
+</b></pre>
+
+Et du coup, dans la vue, il ne reste plus que :
+
+<pre><b>
+&lt;img src="{{ asset(advert.image.webSrc) }}" alt="{{ advert.image.alt }}" /></b></pre>
+
+<p class="well">
+Qu'est-ce que c'est que cette fonction asset() ? ==> C'est apparemment pour adapter mon lien à l'emplacement de mon application par rapport
+à mon domaine (voir dans la <a href="https://symfony.com/doc/current/templating.html" target="_blank">documentation Symfony</a>)</p>
+
+<p class="alert alert-info">
+J'ai ainsi un code parfaitement réutilisable. Si je souhaite ajouter une <b>Image</b> depuis une autre entité que <b>Advert</b>, je n'aurai
+plus rien à faire !</p>
+
+<p class="alert alert-info">
+Il y a de nombreux bundles qui existent pour me simplifier la vie avec les envois de fichiers, ou bien pour faire des envois plus complexes
+(multiple, etc.). En voilà par exemple un très actif et bien maintenu par la communauté : 
+<a href="https://github.com/dustin10/VichUploaderBundle" target="_blank">VichUploaderBundle</a>.</p>
+
+<h2>VI./ Application: les formulaires de notre site</h2>
+<h3>1.) La théorie</h3>
+
+<p>On a généré presque tous les formulaires utiles pour notre site, mais on n'a pas entirement adapté les actions du contrôleur pour les 
+rendre pleinement opérationnelles. </p>
+
+<p>Je vais donc reprendre tout mon contrôleur et le modifier de telle sorte que toutes ses actions soient entièrement fonctionnelles. 
+Entre autres, je vais traiter les actions modification et de suppression d'annonce dans mon contrôleur. </p>
+
+<h3>2.) La pratique</h3>
+
+<h3>Pour conclure :</h3>
+
+<p>Ce chapitre se termine ici. Son contenu est très imposant mais cohérent. Dans tous les cas, et plus encore pour ce chapitre, je dois
+absolument m'entraîner en parallèle à ma lecture.</p>
+
+<p>Prochain étape : validation des données !</p>
+
+<h2>En résumé</h2>
+
+<ul>
+	<li>Un formulaire se construit sur un objet existant, et son objectif est d'hydrater cet objet.</li>
+	<li>Un formulaire se construit grâce à un <b>FormBuilder</b>, et dans un fichier <b>XxxType</b> indépendant.</li>
+	<li>En développement, le rendu d'un formulaire se fait en une seule ligne grâce à la méthode <b>{{ form(form) }}</b>.</li>
+	<li>Il est possible d'imbriquer les formulaires grâce aux <b>XxxType</b>.</li>
+	<li>Le type de champ <b>CollectionType</b> affiche une liste de champs d'un certain type.</li>
+	<li>Le type de champ <b>EntityType</b> retourne une ou plusieurs entités.</li>
+	<li>Il est possible d'utiliser le mécanisme d'héritage pour créer des formulaires différents mais ayant la même base.</li>
+	<li>Le type de champ <b>FileType</b> permet l'upload de fichier, et se couple aux entités grâce aux évènements Doctrine.</li>
+	<li>Le code du cours tel qu'il doit être à ce stade est disponible sur la branche 
+		<a href="https://github.com/winzou/mooc-symfony/tree/iteration-14" target="_blank">itération-14</a> du dépôt Github.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+</div>
+
+ <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+ <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+ <script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

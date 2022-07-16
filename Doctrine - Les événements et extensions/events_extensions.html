@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Les événements et extensions Doctrine</title>
+</head>
+<body>
+<div class="container text-justify">
+													<h1>Les événements et extensions Doctrine</h1>
+													
+<p>Maintenant que je sais manipuler mes entités, je vais vite me rendre compte que pas mal de comportement sont répétitifs. Il est donc
+hors de question de dupliquer du code. </p>
+<p>Ce chapitre a pour objectif de me présener les événements et les extensions Doctrine, qui me permettront de simplifier certains cas
+usuels que je rencontre.</p>
+
+<h2>I./ Les évènements Doctrine</h2>
+<h3>1.) L'intérêt des évènements Doctrine</h3>
+
+<p>Dans certains cas, je peux avoir besoin d'effectuer des actions juste avant ou juste après la création, la mise à jour ou la 
+suppression d'une entité. Par exemple, si je stocke la date d'édition d'une annonce, à chaque modification de l'entité <b>Advert</b>
+il faut mettre à jour cet attribut juste avant la mise à jour des données.</p>
+
+<p>Ces actions, je dois les faire à <em>chaque fois</em>. Cet aspect systématique a deux impacts. D'une part, cela veut dire qu'il faut
+être sûrs de vraiment les effectuer à chaque fois pour que ma base de données soit cohérente. D'autre part, cela veut dire qu'on
+est bien trop fainéants pour se répéter !</p>
+
+<p>C'est ici qu'interviennent les événements Doctrine. Plus précisément, je les trouverai sous le nom de <em>callbacks du cycle de vie</em>
+(<em>lifecycle</em> en anglais) d'une entité. Un <em>callback</em> est une méthode de mon entité, et on va dire à Doctrine de l'exécuter
+à certains moments.</p>
+
+<p>On parle d'événements de "cycle de vie", car ce sont différents événements que Doctrine déclenche à chaque moment de la vie d'une entité :
+son chargement depuis la base de données, sa modification, sa suppression, etc. On en reparle plus loin.</p>
+
+<h3>2.) Définir des <em>callbacks</em> de cycle de vie</h3>
+
+<p>Pour comprendre le principe, je vais prendre l'exemple de mon entité <b>Advert</b>, qui aura un attribut <b>$updatedAt</b> représentant
+la date de la dernière édition de l'annonce. J'ajoute donc d'abord cet attribut comme je sais le faire :</p>
+
+<pre><b>// dans Advert.php
+/**
+ * @ORM\Column(name="updated_at", type="datetime", nullable=true)
+ */
+private $updatedAt;
+</b></pre>
+
+<p class="alert alert-info">
+Note : on a défini l'option <b>nullable</b> à <b>true</b> car les nouvelles annonces qui n'ont jamais été éditées auront cet attribut à null.
+</p>
+<h4>a./ Définir l'entité comme contenant des callbacks</h4>
+
+<p>Tout d'abord, on doit dire à Doctrine que notre entité contient des <em>callbacks</em> de cycle de vie; cela se définit grâce à l'annotation
+<b>HasLifecycleCallbacks</b> dans le namespace habituel des annotations Doctrine :</p>
+
+Réf <b>Advert.php</b>
+
+<p>Cette annotation permet à Doctrinede vérifer les <em>callbacks</em> événtuels contenus dans l'entité. Elle s'applique à la classe de l'entité,
+et non à un attribut particulier. <b>Attention</b>, à ne pas oublier, car sinon mes différents callbacks seront tout simplement ignorés.</p>
+
+<h4>b./ Définir un callback et ses événements associés</h4>
+
+<p>Maintenant il faut définir des méthodes et surtout, les événements sur lesquels elles seront exécutées.</p>
+
+<p>
+Continuons dans notre exemple et créons une méthode <b>updateDate()</b> dans l'entité <b>Advert</b>. Cette méthode doit définir l'attribut
+<b>$updatedAt</b> à la date actuelle, afin de mettre à jour automatiquement la date d'édition d'une annonce. Voici à quoi elle pourrait
+ressembler :</p>
+
+Réf <b>Advert.php</b>
+
+<p>Maintenant, il faut dire à Doctrine d'exécuter cette méthode (ce callback) dès que l'entité <b>Advert</b> est modifiée. On parle 
+d'<em>écouter un événement</em>. Il existe plusieurs événements de cycle de vie avec Doctrine, celui qui m'intéresse ici est l'événement
+<b>PreUpdate</b>: c'est-à-dire que la méthode va être exécutée juste avant que l'entité ne soit modifiée en base de données. Voici à quoi
+cela ressemble ( ==> Réf Advert.php) :</p>
+
+<pre><b>// dans Advert.php
+/**
+ * @ORM\PreUpdate
+ */
+public function methodeCallback() {
+	//...
+}
+</b></pre>
+
+<p>C'est tout ! A chaque modification de mon entité Advert, son attribut <b>$updatedAt</b> est mis à jour !</p>
+
+<p class="alert alert-warning">
+Attention : l'événement <b>update</b> n'est pas déclenché à la création de l'entité, mais seulement à sa modification: c'est parfaitement
+ce qu'on veut dans notre exemple.</p>
+
+<p>Pour aller plus loin, il y a deux points qu'il me faut savoir. D'une part, au même tire que l'événement <b>PreUpdate</b>, il existe 
+l'événement <b>PostUpdate</b> et bien d'autres, on en dresse une liste dans le tableau suivant. Le second point est que depuis la version
+2.4 de Doctrine, le <em>callback</em> peut prendre en argument l'événement déclencheur: il est possible d'accéder à l'<em>entity
+manager</em> et à l'<em>unit of work</em> pour effectuer des opérations courantes sur les événements. Pour en savoir plus, je peux voir la
+<a href="http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/events.html#lifecycle-callbacks-event-argument" 
+target="_blank">documentation Doctrine (chapitre sur les événements)</a>.</p>
+
+<p class="alert alert-info">
+Note : si j'utilise une version antérieure à 2.4, pour exécuter des actions plus complexes lors d'événements, il faut créer des services,
+on voit cela plus loin.
+</p>
+
+<h3>3.) Liste des événements de cycle de vie</h3>
+
+<p>Les différentes événements du cycle de vie sont récapitulés dans le tableau suivant :</p>
+
+<div class="row">
+<table class="table table-bordered table-striped">
+<thead>
+	<tr class="warning"><td>Evénement</td><td>Description</td></tr>
+</thead>
+<tbody>
+<tr><td>PrePersist</td><td>
+L'événement PrePersist se produit juste avant que l'EntityManager ne persiste effectivement l'entité. Concrètement, cela exécute le 
+callback juste avant un <b>$em->persist($entity)</b>. Il ne concerne que les entités nouvellement créées. Du coup, il y a deux 
+conséquences : d'une part, les modifications que j'apporte à l'entité seront persistées en bases de données, puisqu'elles sont effectives 
+avant que l'EntityManager n'enregistre l'entité en base de données. D'autre part, je n'ai pas accès à l'id de l'entité si celui-ci est
+autogénéré, car justement l'entité n'est pas encore enregistrée en base de données, et donc l'id pas encore généré.</td></tr>
+<tr><td>PostPersist</td><td>
+L'événement PostPersist se produit juste après que l'EntityManager ait effectivement persisté l'entité. Attention, cela n'exécute pas le 
+callback juste après le <b>$em->persist($entity)</b>, mais juste après le <b>$em->flush()</b>. A l'inverse du PrePersist, les modifications
+que j'apporte à l'entité ne seront pas persistées en base de données (mais seront tout de même appliquées à l'entité, attention); mais
+j'ai par contre accès à l'id qui a été généré lors du flush().</td></tr>
+<tr><td>PreUpdate</td><td>
+L'événement preUpdate se produit juste avant que l'EntityManager ne modifie une entité. Par modifiée, il faut entendre que l'entité 
+existait déjà, que j'y ai apporté des modifications, puis un <b>$em->flush()</b> a été effectué. Le callback sera exécuté juste avant
+le <b>flush()</b>. <b>Attention</b>, il faut que j'aie modifié au moins un attribut pour que l'EntityManager génère une requête et donc
+déclenche cet événement. J'ai accès à l'id autogénéré (car l'entité existe déjà), et mes modifications seront persistées en base de 
+données.</td></tr>
+<tr><td>PostUpdate</td><td>
+L'événement postUpdate se produit juste après que l'EntityManager a effectivement modifié une entité. J'ai accès à l'id et mes modifications
+ne sont pas persistées en base de donnéés.</td></tr>
+<tr><td>PreRemove</td><td>
+L'évènement preRemove se produt juste avant que l'EntityManager ne supprime une entité, ie juste avant un <b>$em->flush()</b> qui 
+suit un <b>$em->remove($entite)</b>. Attention, il faut être prudent pour cet événement si je souhaite supprimer des fichiers liés
+à l'entité par exemple, car à ce moment l'entité n'est pas encore effectivement suppprimée, et la suppression peut être annulée en cas
+d'erreur dans une des opérations à effectuer dans le <b>flush()</b>.</td></tr>
+<tr><td>PostRemove</td><td>
+L'évènement PostRemove se produit juste après que l'EntityManager a effectivement supprimé une entité. Si je n'ai plus accès à son id, 
+c'est ici que je peux effectuer une suppression de fichier associé par exemple.</td></tr>
+<tr><td>PostLoad</td><td>
+L'évènement PostLoad se produit juste après que l'EntityManager a chargé une entité (ou après un <b>$em->refresh()</b>). Utile pour
+appliquer une action lors du chargement d'une entité.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p class="alert alert-warning">
+Attention: ces événements se produisent lorsque je vaux créer et modifier mes entités en manipulant les objets. Ils ne sont pas déclenchés
+lorsque j'effectue des requête DQL ou avec le QueryBuilder. En effet, ces requêtes peuvent toucher un grand nombre d'entités et il serait
+dangereux pour Doctrine de déclencher les événements correspondants un à un.
+</p>
+
+<h3>4.) Un autre exemple d'utilisation</h3>
+
+<p>Pour bien comprendre l'intérêt des événements, je vais voir un autre exemple: un compteur de candidatures pour les annonces.
+L'idée est la suivante: j'ai un site très fréquenté, et un petit serveur. Au lieu de récupérer le nombre de candidatures par annonces
+de façon dynamique à l'aide d'une requête <b>COUNT(*)</b>, on décide de rajouter un attribut <b>nbApplications</b> à notre entité 
+<b>Advert</b>. L'enjeu maintenant est de tenir cet attribut parfaitement à jour, et surtout très facilement.</p>
+
+<p>C'est là que les événements interviennent. Si on réfléchit un peu, le processus est assez simple et systématique: </p>
+<ul>
+	<li>A chaque création d'une candidature, on doit effectuer un <b>+1</b> au compteur contenu dans l'entité <b>Advert</b> liée;</li>
+	<li>A chaque suppression d'une candidature, on doit effectuer un <b>-1</b> au compteur contenu dans l'entité <b>Advert</b> liée.</li>
+</ul>
+
+<p>
+Ce genre de comprtement, relativement simple et systématique, est typiquement ce que je peux automatiser grâce aux événements Doctrine.</p>
+
+<p>Les deux événements qui m'intéressent ici sont donc la création et la suppression d'une candidature. Il s'agit des événements 
+<b>PrePersist</b> et <b>PreRemove</b> de l'entité <b>Application</b>. Pourquoi ? Car les événements <b>*Update</b> sont déclenchés à la
+mise à jour d'une candidature, ce qui ne change pas notre compteur ici. Et les événements <b>Post*</b> sont déclenchés après la mise 
+à jour effective de l'entité dans la base de données, du coup la mise à jour de notre compteur ne serait pas enregistrée.</p>
+
+<p>
+Tout d'abord, créons  notre attribut <b>$nbApplications</b> dans l'entité <b>Advert</b>, ainsi que des méthodes pour incrémenter et 
+décrémenter ce compteur (en plus des getter/setter) :
+</p>
+
+<b>Réf Advert2.php</b>
+
+<p>
+Ensuite, on doit définir deux callbacks dans l'entité <b>Application</b> pour mettre à ajour le compteur de l'entité <b>Advert</b> liée.
+Attention, mes événements concernent bien l'entité <b>Application</b> et non pas l'entité <b>Advert</b>.
+</p>
+<b>Réf Application.php</b>
+
+<p class="alert alert-warning">
+Attention à ne pas oublier l'annotation <b>HasLifecycleCallbacks()</b> sur l'objet <b>Application</b>
+</p>
+
+Cette solution est possible car nous avons une relation entre ces deux entités <b>Application</b> et <b>Advert</b>, il est donc possible
+d'accéder à l'annonce depuis une candidature.
+
+<h3>5.) Utiliser des services pour écouter les événements Doctrine</h3>
+
+Les callbacks définis directement dans les entités sont pratiques mais simples  à mettre en place. Quelques petites annotations et le tour
+est joué. Cependant, leurs limites sont vites atteintes car, comme toute méthode au sein d'une entité, les callbacks n'ont accès à aucune
+information de l'extérieur
+
+<p>
+En effet, imaginons qu'on veuille mettre en place un système pour envoyer un email à chaque création d'une candidature. Dans ce cas, le
+code qui est exécuté à chaque création d'entité a besoin du service <em>mailer</em> afin d'envoyer des emails, or ce n'est pas possible
+depuis une entité.
+</p>
+<p>
+Heureusement, il est possible de dire à Doctrine d'exécuter des services Symfony pour chaque événement du cycle de vie des éntités. L'idée
+est vraiment la même, mais au lieu d'une méthode callback dans notre entité, on a un service défini hors de notre entité. La seule différence
+est la syntaxe bien sûr. </p>
+<p>
+Il y a tout de même un point qui diffère des callbacks, c'est que nos services sont exécutés pour un événement (PostPersist par exemple)
+concernant toutes nos entités, et non attaché à une <em>seule</em> entité. Si je veux effectuer mon action seulement pour les entités
+<b>Advert</b>, il faut alors vérifier le type d'entité qui sera en argument de mon service. L'avantage est que du coup je peux facilement
+effectuer une action commune à toutes mes entités.</p>
+<p>
+Avant de voir la syntaxe, prenons le temps pour voir comment organiser nos services ici. La fonctionnalité à mettre en place est l'envoi
+d'un email à chaque fois qu'une candidature est reçue. On peut donc décomposer cette fonctionnalité en deux parties : d'une part l'envoi
+d'un email, et d'autre part l'aspect systématique à chaque candidature reçue. Pour bien organiser mon code, je vais donc faire deux
+services: l'un pour envoyer l'e-mail, et l'autre qui sera appelé par Doctrine, ce sera lui le callback à proprement parler. Pourquoi 
+décomposer ? Car l'envoi d'un e-mail de notification est quelque chose que je voudrai peut-être faire à un autre moment qu'un événement
+Doctrine. Imaginons par exemple, une fonctionnalité permettant de renvoyer cet e-mail après quelques jours sans réponse, les possibilités
+sont nombreuses. Dans tous les cas, j'ai bien deux services distincts.</p>
+<p>
+Voici donc d'abord le service qui envoie les e-mails de notifications. Ce service dépend du serice <em>mailer</em>, et la méthode en 
+elle-même a besoin d'une instance de <b>Application</b> en argument.</p>
+
+<b>Réf ApplicationMailer.php</b>
+
+<p>Ainsi que sa configuration :</p>
+<b>Réf services.yml</b>
+
+<p>Le service contient une méthode, qui se contente d'envoyer un petit e-mail à l'adresse contenue dans l'annonce liée à la candidature
+passée en argument. On pourrait également rajouter une méthode pour envoyer un e-mail de confirmation au candidat qui a créé la 
+candidature, etc. Mais tout cela n'a rien à voir avec notre sujet, les événements Doctrine !</p>
+<p>Passons donc au vif su sujet, voici enfin le callback, celui qui sera appelé par Doctrine lorsque les événements configurés seront
+déclenchés.</p>
+<b>Réf ApplicationCreationListener.php</b>
+<p>Notons qu'on a nommé la méthode du serice du nom de l'événement que je vais écouter. Je ferai effectivement le lien avec l'événement 
+via la configurationdu service, mais la méthode doit respecter le même nom que l'événement.</p>
+
+Ensuite, il y a deux points à retenir sur la syntaxe:<br>
+<ul>
+	<li>Le seul argument qui est donné à ma méthode est un objet LifecycleEventArgs. Il offre deux méthodes: <b>getObject()</b> et 
+	<b>getObjectManager()</b>. La première, <b>getObject()</b>, retourne l'entité sur laquelle l'événement est en train de se produire.
+	La seconde, <b>getObjectManager()</b>, retourne l'EntityManager nécessaire pour persister ou supprimer de nouvelles entités que
+	je pourrais gérer, je ne m'en sers pas ici;</li>
+	<li>Comme je l'avais mentionné, la méthode sera exécutée pour l'événement PostPersist de <em>toutes</em> mes entités. Dans mon cas, 
+	comme souvent, je ne veux envoyer l'e-mail que lorsqu'une entité en particulier est ajoutée, ici <b>Application</b>. D'où le if pour
+	vérifier le type d'entité auquel on a affaire. Si le callback est appelé sur une entité qui ne m'intéresse pas ici, je sors simplement
+	de la méthode sans rien faire (cf <b>return</b>).</li>
+</ul>
+<p>Maintenant que mon objet est prêt, il faut en faire un service et dire à Doctrine qu'il doit être exécuté pour tous les événements
+PostPersist. Voici la syntaxe à respecter :</p>
+
+<b>Réf services.yml => oc_platorm.doctrine_listener.application_creation</b>
+
+<p>La définition du service n'a rien de nouveau par rapport à ce qu'on a vu sur le chapitre dédié aux services.</p>
+
+<p>La nouveauté est par contre la section tag. Il faut savoir que c'est ce tag qui permet au conteneur de services de dire à Doctrine que ce
+service doit être exécuté pour les événements PostPersist. Pas de panique, le fonctionnement des tags de services sera expliqué dans un
+chapitre de la prochaine partie, mais pour l'instant connaître cette syntaxe me permet de les utiliser  dans ce cadre. </p>
+
+<p>Bien entendu, je peux écouter n'importe quel événement avec cette syntaxe, il me suffit de modifier l'attribut <b>event: postPersist</b>
+du tag.</p>
+
+<h3>6.) Essayons nos événements</h3>
+
+<p>Dans ma méthode <b>addAction</b> de mon contrôleur, j'enregistre normalement une annonce et deux (non 4 en réalité) candidatures en base
+de données. Vérifions donc que mes deux comportement fonctionnent bien: l'incrémentation d'un compteur de candidatures d'une part, et
+l'envoi d'e-mail d'autre part. Allons donc sur la page <b>/platform/add</b></p>
+
+<p>J'aurai sans doute cette erreur <em>Address in mailbox given [Alexandre] does not comply with RFC 2822, 3.6.2</em>, c'est parce que j'ai
+utilisé le nom au lieu de l'adresse e-mail pour envoyer l'e-mail justement. Il me faut donc effectuer quelques ajustements (créer un 
+attribut <b>$email</b> dans l'entité <b>Advert</b>, etc.)...</p>
+<p>
+Mais d'abord, voyons ce que cette erreur nous donne comme information, en regardant sur le stack trace sur la figure suivante :</p>
+
+<figure>
+	<img src="stack_trace.png" alt="Stack trace de l'erreur">
+	<figcaption>Stack trace de notre erreur</figcaption>
+</figure>
+
+<p>Cette <em>stack trace</em> est intéressante car elle nous montre le cheminement complet pour arriver jusqu'à notre service d'envoi
+d'e-mail. On peut y constater que c'est à partir de notre <em>flush</em> depuis le contrôleur que Doctrine déclenche l'évènement 
+postPersist, qui lui va appeler notre service comme convenu. Soit dit en passant, lire le <em>stack trace</em> en cas d'erreur est un
+bon réflexe : car en comprenant bien le cheminement des opérations, cela m'aide à comprendre et donc résoudre les erreurs.</p>
+
+<p>Je viens donc de valider que mon envoi d'e-mail à la création d'une candidature est OK. Maintenant, vérifions le compteur de candidatures.
+Pour cela, ouvrons le <em>profiler</em> sur l'onglet des requêtes SQL, afin de voir ce qui suit :</p>
+
+<figure>
+	<img src="sql_profiler.png" alt="Voir les requêtes SQL via profiler">
+	<figcaption>Les requêtes SQL générées pour insérer l'annonce et les deux candidatures</figcaption>
+</figure>
+
+<p>On voit sur cette figure que la valeur de l'attribut <b>nbApplications</b> est de 2, ce qui est bien le nombre de candidatures que 
+j'enregistre en même temps: parfait !</p>
+
+<p class="alert alert-warning">
+Notons également qu'à la fin de la transaction, Doctrine fait un <b>ROLLBACK</b> et non un <b>COMMIT</b>. Cela signifie qu'il annulle
+toute la transaction, et donc l'enregistrement de notre annonce et de nos candidatures. Annuler toute la transaction parce qu'un 
+e-mail de notification n'a pas pu être envoyé, ce n'est généralement pas le comportement souhaité. Pour éviter cela, il faudrait, dans le
+<b>ApplicationCreationListener</b>, rajouter un bloc <b>try/catch</b> afin d'intercepter l'exception de SwiftMailer, et ainsi ne pas 
+annuler toute la transaction Doctrine. Faudra y penser !</p>
+
+<h2>II./ Les extensions Doctrine</h2>
+<h3>1.) L'intérêt des extensions Doctrine</h3>
+
+<p>Dans la gestion des entités d'un projet, il y a des comportements assez communs que je souhaite implémenter.</p>
+
+<p>Par exemple, il est très classique de vouloir générer des slugs pour des annonces, pour des sujets d'un forum, etc. Un slug est une
+version simplifiée, compatible avec les URL, d'un autre attribut, souvent un titre. Par exemple le slug du titre "Recherche développeur !"
+serait "recherche-developpeur". Notons que l'espace a été remplacée par un tiret, le point d'exclamation supprimé.</p>
+
+<p>Plutôt que de réinventer tout le comportement nous-mêmes, nous allons utiliser les extensions Doctrine ! Doctrine est en effet très
+flexible, et la communauté a déjà créé une série d'extensions très pratiques afin de m'aider avec des tâches usuelles liées aux entités. 
+A l'image des événements, utiliser des extensions évite de se répéter au sein de mon application Symfony: c'est la philosophie 
+<a href="https://fr.wikipedia.org/wiki/Ne_vous_r%C3%A9p%C3%A9tez_pas" target="_blank">DRY</a>.</p>
+
+<h3>2.) Installer le StofDoctrineExtensionBundle</h3>
+
+<p>Un bundle particulier permet d'intégrer différentes extensions Doctrine dans un projet Symfony, il s'agit de 
+<a href="https://github.com/stof/StofDoctrineExtensionsBundle/blob/master/Resources/doc/index.rst" target="_blank">
+StofDoctrineExtensionBundle</a>. Commençons par l'installer avec Composer, en rajoutant cette dépendance dans mon <b>composer.json</b> et
+en exécutant un <b>composer update</b> :</p>
+<pre>
+<b>// composer.json
+
+"require": {
+	"stof/doctrine-extensions-bundle": "^1.2.2"
+}
+</b>
+</pre>
+
+<p>Ce bundle intègre la bibliothèque <a href="https://github.com/Atlantic18/DoctrineExtensions" target="_blank">DoctrineExtensions</a> 
+sous-jacente, qui est celle qui inclut réellement les extensions Doctrine.</p>
+
+<p>N'oublions pas d'enregistrer le bundle dans le noyau: </p>
+
+<pre>
+<b>// app/AppKernel.php
+
+public function registerBundles() {
+	return array(
+		//...
+		new Stof/DoctrineExtensionsBundle\StofDoctrineExtensionsBundle(),
+		//...
+	);
+}
+</b>
+</pre>
+
+<p>Voilà, le bundle est intallé, il faut maintenant activer telle ou telle extension.</p>
+
+<h3>3.) Utiliser une extension: l'exemple de Sluggable</h3>
+
+<p>L'utilisation des différentes extensions est très simple grâce à la flexibilité de Doctrine et au bundle pour Symfony. Voici par 
+exemple l'utilisation de l'extension Sluggable, qui permet de définir très facilementun attribut <b>slug</b> dans une entité : le slug
+sera automatiquement généré !</p>
+
+<p>Tout d'abord, il faut activer l'extension Sluggable, il faut pour cela configurer le bundle via le fichier de configuration 
+<b>config.yml</b>. Je rajoute donc cette section :</p>
+
+<pre><b># app/config/config.yml
+
+# Stof\DoctrineExtensionsBundle configuration
+stof_doctrine_extensions:
+    orm:
+        default:
+            sluggable: true
+</b></pre>
+
+<p>Cela va activer l'extension Sluggable. De la même manière, je pourrai activer d'autres extensions en les rajoutant à la suite.</p>
+<p>Concrètement, l'utilisation des extensions se fait grâce à de judicieuses annotations. En effet, pour l'extension Sluggable, l'annotation
+est tout simplement <b>Slug</b>. En l'occurence, il faut ajouter un nouvel attribut <b>slug</b> (le nom est arbitraire) dans mon entité, 
+sur lequel je mettre l'annotation. Voici un exemple dans mon entité <b>Advert</b> :</p>
+
+<b>Réf Advert3.php</b>
+
+<p>Dans un premier temps, on utilise le namespace de l'annotation, ici <b>Gedmo\Mapping\Annotation</b>.</p>
+
+<p>Ensuite, l'annotation <b>Slug</b> s'applique très simplement sur un attribut qui va contenir le slug. L'option <b>fields</b> permet
+de définir le ou les attributs à partir desquels le slug sera généré: ici le titre uniquement. Mais je peux en indiquer plusieurs en les
+séparant par des virgules.</p>
+
+<p class="alert alert-warning">
+Il ne faut pas oublier de mettre à jour ma base de données avec la commande <b>doctrine:schema:update</b>, mais également de générer le
+getter et le setter du slug, grâce à la commande <b>doctrine:generate:entities OCPlatformBundle:Advert</b></p>
+
+<p>C'est tout ! Je peux dès à présent tester le nouveau comportement de mon entité. Par exemple, créons une entité avec un titre de test, et
+l'enregistrons : son attribut <b>slug</b> sera automatiquement rempli !</p>
+
+<b>==> Réf AdvertController.php</b>
+
+<p>L'attribut <b>slug</b> est rempli automatiquement par le bundle. Ce dernier utilise en réalité tout simplement les événéments 
+Doctrine <b>PrePersist</b> et <b>PreUpdate</b>, qui permettent d'intervenir juste avant l'enregistrement et la modification de l'entité
+comme on l'a vu plus haut.</p>
+
+<p class="alert alert-info">
+Note : j'ai défini l'attribut <b>slug</b> comme unique (unique=true dans l'annotation Column). En effet, on se sert souvent du slug comme
+identifiant de l'entité, ici l'annonce, afin de l'utiliser dans les URL et améliorer le référencement. Il faut savoir que l'extension
+est intelligente : si j'ajoute un <b>Advert</b> avec un titre qui existe déjà, le slug sera suffixé de "-1" pour garder l'unicité, par
+exemple "recherche-developpeur-1". Et à chaque nouveau titre identique, le nombre à la fin est incrémenté !
+</p>
+
+Je sais maitenant utiliser l'extension Doctrine Sluggable ! Voyons les autres extensions disponibles.
+
+<h3>4.) Liste des extensions Doctrine</h3>
+
+<p>Voici la liste des principales extensions actuellement disponibles, ainsi que leur description et des liens vers la documentation pour
+me permettre de les implémenter dans mon projet.</p>
+
+<table class="table table-bordered table-striped">
+	<thead>
+		<tr class="warning"><td>Extension</td><td>Description</td></tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/tree.md" target="_blank">
+				Tree</a></td>
+			<td>L'extension Tree automatise la gestion des arbres et ajoute des méthodes spécifiques au repository. Les arbres sont une
+			représentation d'entités avec des liens type parents-enfants, utiles pour les catégories d'un forum par exemple</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/translatable.md" target="_blank">
+				Translatable</a></td>
+			<td>L'extension Translatable offre une solution aisée pour traduire des attributs spécifiques de mes entités dans différents
+			langages. De plus, elle charge automatiquement les traductions pour la locale courante.</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/sluggable.md" target="_blank">
+				Sluggable</a></td>
+			<td>L'extension Sluggable permet de générer automatiquement un slug à partir d'attributs spécifiés.</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/timestampable.md" target="_blank">
+				Timestampable</a></td>
+			<td>L'extension Timestampable automatise la mise à jour d'attributs de type <b>date</b> dans mes entités. Je peux définir
+			la mise à jour d'un attribut à la création et/ou à la modification, ou même à la modification d'un attribut particulier. En
+			fait, cette extension fait exactement la même chose que ce qu'on a fait dans le paragraphe précédent sur les événements
+			Doctrine (mise à jour de la date à chaque modification), et en mieux !</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/blameable.md" target="_blank">
+				Blameable</a></td>
+			<td>L'extension Blameable permet d'assigner l'utilisateur courant (l'entité elle-même, ou alors juste le nom d'utilisateur) 
+			dans un attribut d'une autre entité. Utile pour mon entité <b>Advert</b>, laquelle pourrait être reliée à un utilisateur</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/loggable.md" target="_blank">
+				Loggable</a></td>
+			<td>L'extension Loggable permet de conserver les différentes versions de mes entités, et offre des outils de gestion de version</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/sortable.md" target="_blank">
+				Sortable</a></td>
+			<td>L'extension Sortable permet de gérer des entités ordonnées, c'est-à-dire avec un ordre précis</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/softdeleteable.md" target="_blank">
+				Softdeleteable</a></td>
+			<td>L'extension Softdeleteable permet de "soft-supprimer" des entités, c'est-à-dire de ne pas les supprimer réellement, juste
+			mettre un de leur attributs à <b>true</b> pour les différencier. L'extension permet également de les filtrer lors des 
+			<b>SELECT</b>, pour ne pas utiliser des entités "soft-supprimées".</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/uploadable.md" target="_blank">
+				Uploadable</a></td>
+			<td>L'extension Uploadable offre des outils pour gérer l'enregistrement de fichiers associés avec des entités. Elle inclut
+			la gestion automatique des déplacements et des suppressions des fichiers.</td>
+		</tr>
+		<tr>
+			<td><a href="https://github.com/Atlantic18/DoctrineExtensions/blob/master/doc/ip_traceable.md" target="_blank">
+				IpTraceable</a></td>
+			<td>L'extension IpTraceable permet d'assigner l'ip de l'utilisateur courant à un attribut.</td>
+		</tr>
+	</tbody>
+</table>
+
+<p>Il vaut mieux avoir ces extensions en tête, ou sous la main, pour le jour où j'en trouverai l'utilité. Histoire de ne pas réinventer la
+roue.</p>
+
+<h3>Pour conclure :</h3>
+
+C'est fini pour la théorie sur Doctrine. J'ai maintenant tous les outils pour gérer mes entités, et donc ma base de données. Il ne reste
+plus que pratiquer !
+
+<h3>En résumé :</h3>
+<ul>
+	<li>Les événements permettent de centraliser du code répétitif, afin de systématiser leur exécution et réduire la duplication de code.</li>
+	<li>Plusieurs événements jalonnent la vie d'une entité, afin de pouvoir exécuter une fonction aux endroits désirés.</li>
+	<li>Les extensions permettent de reproduire des comportements communs dans une application, afin d'éviter de réinventer la roue.</li>
+	<li>Le code du cours tel qu'il doit être à ce stade est disponible sur la branche 
+		<a href="https://github.com/winzou/mooc-symfony/tree/iteration-12" target="_blank">iteration-12</a> du dépôt Github</li>
+</ul>
+
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

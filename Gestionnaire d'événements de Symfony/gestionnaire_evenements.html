@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Le gestionnaire d'événements de Symfony</title>
+</head>
+<body>
+<div class="container text-justify">
+													<h1>Le gestionnaire d'évènements de Symfony</h1>
+													
+<p>Comment ferait-on pour exécuter un certain code à un certain moment sur chaque page consultée de son site internet ? Ou pour enregistrer
+chaque connexion des utilisateurs dans une base de données ? Et pour modifier la réponse retournée au visiteur selon certains critères 
+indépendants d'un contrôleur ? </p>
+<p>Eh bien, tout cela n'est plus un rêve car Symfony a la réponse: grâce au <b>gestionnaire d'événements</b> ! </p>
+
+<h2>I./ Des événements, pour quoi faire ?</h2>
+<h3>1.) Qu'est-ce qu'un événement ?</h3>
+
+<p>Un événement correspond à un moment clé dans l'exécution d'une page. Il en existe plusieurs, par exemple l'événement
+<b>kernel.request</b> qui est déclenché avant que le contrôleur ne soit exécuté. Cet événement est déclenché à chaque page, mais il
+en existe d'autres qui ne le sont que lors d'actions particulières, par exemple l'événement <b>security.interactive_login</b>, qui
+correspond à l'identification d'un utilisateur.</p>
+
+<p>Tous les évnénements sont déclenchés à des endroits stratégiques de l'exécution d'une page Symfony, et vont nous permettre de réaliser
+nos rêves de façon classe et surtout découplée.</p>
+
+<h3>2.) Qu'est-ce que le gestionnaire d'événements ?</h3>
+
+<p>On a parlé à l'instant de <b>découplage</b>. C'est la principale raison de l'utilisation d'un gestionnaire d'événements ! Par code
+découplé, il faut entendre que celui qui écoute l'événement ne dépend pas du tout de celui qui déclenche l'événement. Explication :</p>
+
+<ul>
+	<li>On parle de <strong>déclencher un événement</strong> lorsqu'on signale au gestionnaire d'événements: "Tel événement vient de 
+		se produire, préviens tout le monde !" Pour reprendre l'exemple de l'événement <b>kernel.request</b>, c'est le Kernel qui 
+		déclenche l'événement.</li>
+	<li>On parle d'<strong>écouter un événement</strong> lorsqu'on signale au gestionnaire d'événements: "Je veux que tu me préviens dès
+		que tel événement se produira".</li>
+</ul>
+
+<p>Ainsi, lorsqu'on écoute un événement que le Kernel va déclencher, on ne touche pas au Kernel, on ne vient pas perturber son fonctionnement.
+On se contente d'exécuter du code de notre côté, en ne comptant que sur le déclenchement de l'événement de l'événement; c'est le rôle
+du gestionnaire d'événements de nous prévenir. Le code est donc totalement découplé.</p>
+
+<p>C'est le mécanisme d'enclenchement d'événements et de <em>listeners</em> qui écoutent un certain événement. C'est du connu. Mais
+voici quand même un schéma illustrant le mécanisme :</p>
+
+<figure>
+	<img src="events.png" alt="Gestionnaire d'événements">
+	<figcaption>Fonctionnement du gestionnaire d'événements</figcaption>
+</figure>
+
+<p class="ai">
+J'ai eu raison de reconnaître le pattern Observer, le gestionnaire d'événements de Symfony n'étant qu'un implémentation de ce pattern.</p>
+
+<h2>II./ Ecouter des évènements</h2>
+<h3>1.) Notre exemple</h3>
+
+<p>Dans un premier temps, je vais apprendre à écouter des événements. Pour cela, je vais me servir d'un exemple simple: l'ajout d'une 
+bannière "bêta" sur notre site le temps de son développement. L'objectif est donc de modifier chaque page retournée au visiteur pour
+ajouter cette balise.</p>
+
+<p>L'exemple est simpliste bien sûr, mais me montre déjà le code découplé qu'il est possible de faire. En effet, pour afficher une 
+mention "bêta" sur chaque page, il suffirait d'ajouter un ou plusieurs petits <b>if</b> dans la vue. Mais ce ne serait pas très joli, 
+et le jour où mon site passe en stable il ne faudrait pas oublier de retirer l'ensemble de ces <b>if</b>, bref, il y a un risque. Avec
+la technique d'un listener unique, il suffira de désactiver celui-ci.</p>
+
+<h3>2.) Créer un service et son listener</h3>
+
+<p>Je veux effectuer une certaine action lors d'un certain événement. Dans ce que je veux, il y a deux choses à distinguer :</p>
+
+<ul>
+	<li>D'une part, l'action à réaliser effectivement. Dans notre cas, il s'agit d'ajouter une mention beta à une réponse contenant du 
+		HTML. C'est une action très simple, mais une action quand même, qui mérite son propre objet. Appelons-le <b>BetaHTMLAdder</b>.</li>
+	<li>D'autre part, le fait d'exécuter l'action précédente à un certain moment, avec certains paramètres, c'est une action, qui
+		mérite donc un autre objet: le listener. Appelons-le <b>BetaListener</b>.</li>
+</ul>
+
+<p>C'est pourquoi on va créer nous allons créer deux objets différents.</p>
+
+<p>Attaquons le 1er objet, celui qui contient la logique de ce qu'il y a à faire: ajouter la mention bêta à une réponse.</p>
+
+<p>Pour savoir où placer ce service dans notre bundle, il faut se poser la question suivante: "A quelle fonction répond mon service ?" 
+La réponse est "&Agrave; définir la version bêta", on va donc placer l'objet dans le répertoire <b>Beta</b>, tout simplement. On y 
+ajoutera plus tard le listener.</p>
+
+<b>Réf BetaHTMLAdder.php</b>
+
+<p>Ainsi que la configuration du service correspondant:</p>
+
+<b>Réf services.yml</b>
+
+<p>Pour l'instant, c'est un service tout simple, qui n'écoute personne. On dispose d'une méthode <b>addBeta()</b> prête à l'emploi pour
+modifier la réponse lorsqu'on la lui donnera.</p>
+
+<p>Passons au listener: l'objet devra contenir une méthode pour ajouter si besoin (en fonction de la date) la mention bêta à la réponse
+courante, en faisant appel à notre service fraîchement créé. Voici son squelette pour l'instant :</p>
+
+<b>Réf BetaListener.php</b>
+
+<p class="ai">
+On met ici le listener dans le répertoire de la fonctionnalité, Beta. Il est aussi possible de regrouper tous les listeners dans un même
+répertoire, EventListener par exemple. Cela permet ainsi d'avoir tous les listeners d'un seul coup d'oeil, pour mieux voir ce qu'il se
+passe dans mon application. Les deux méthodes sont tout à fait valable. A moi de choisir (la seconde !).</p>
+
+<p>Voici donc le rôle de tout listener: décider s'il faut ou non appeler un autre objet qui remplira une certaine fonction. La fonction
+du listener n'est que de décider quand appeler l'autre objet. Parfois, il faut appeler à chaque fois qu'un événement est déclenché; 
+parfois cela dépend d'autres conditions comme ce qu'on fait ici.</p>
+
+<p>Dans notre cas, la décision ou non d'appeler le BetaHTMLAdder repose sur la date courante : si elle est antérieure à la date définie
+dans le constructeur, on exécute BetaHTMLAdder. Sinon, on ne fait rien.</p>
+
+<h3>3.) Ecouter un événement</h3>
+
+<p>Il faut maintenant présenter ce listener au gestionnaire d'événements. Il existe deux manières de le faire : manipuler directement le
+gestionnaire d'évènements, ou passer par les services.</p>
+
+<p>On utilisera très rarement la première méthode, mais on va quand même l'étudier en premier, car elle permet de bien comprendre ce qu'il
+se passe dans la deuxième.</p>
+
+<p class="ai">
+Vu qu'on a besoin de modifier la réponse retournée par les contrôleurs, on va écouter l'évènement <b>kernel.response</b>. On dresse plus
+loin une liste complète des évènements avec les informations clés pour déterminer lequel écouter. Pour le moment, suivons notre exemple.</p>
+
+<h4>a./ Méthode 1: Manipuler directement le gestionnaire d'évènements</h4>
+
+<p>Cette première méthode, un peu brute, consiste à passer notre objet <b>BetaListener</b> au gestionnaire d'événements. Ce gestionnaire
+existe en tant que service sous Symfony, il s'agit de l'<b>EventDispatcher</b>. Concrètement, voici comment faire :</p>
+
+<b>Réf InSomeController.php</b>
+
+<p>&Agrave; partir de maintenant, dès que l'évènement <b>kernel.response</b> est déclenché, le gestionnaire d'évènements exécutera
+la méthode <b>$betaListener->processData()</b>.</p>
+
+<p class="ai">
+Bien évidemment, avec cette méthode, le moment où j'exécute ce code est important ! En effet, si je préviens le gestionnaire d'événements
+<em>après</em> que l'évènement qui m'intéresse se soit produit, mon listener ne sera pas exécuté ! C'est pourquoi ce n'est que rarement
+que l'on procédera ainsi.</p>
+
+<h4>b./ Méthode 2: Définir son listener comme service</h4>
+
+<p>C'est la méthode qu'on utilisera 99 % du temps. Elle est bcp plus simple et permet d'éviter le problème de l'évènement qui se produit
+avant l'enregistrement de mon listener dans le gestionnaire d'évènements.</p>
+
+<p>Mettons en place cette méthode pas à pas. Tout d'abord, je définis mon listener en tant que service, comme ceci: </p>
+
+<b>Réf services2.yml</b>
+
+<p>A partir de maintenant, mon listener est accessible via le conteneur de services, en tant que service tout simple. Pour aller plus 
+loin, il faut définir le tag <b>kernel.event_listener</b> sur ce service. Le processus est le suivant: une fois le gestionnaire
+d'évènements instancié par le conteneur de services, il va récupèrer tous les services qui ont ce tag, et exécuter le code de la méthode
+1 qu'on vient de voir afin d'enregistrer les listeners dans lui-même. Tout se fait automatiquement !</p>
+
+<p>Voici donc le tag en question à rajouter à notre service :</p>
+
+<b>Réf services2.yml ==> tags</b>
+
+<p>Il y a deux paramètres à définir dans le tag, qui sont les deux paramètres qu'on a utilisés précédemment dans la méthode
+<b>$dispatcher->addListener</b> : </p>
+
+<ul>
+	<li><b>event</b>: c'est le nom de l'événement que le listener veut écouter;</li>
+	<li><b>method</b>:  c'est le nom de la méthode du listener à exécuter lorsque l'évènement est déclenché.</li>
+</ul>
+
+<p>C'est tout ! Avec uniquement cette définition de service et le bon tag associé. Il suffit pour cela d'ajouter un autre tag avec
+des paramètres différents. Voici ce que cela donnerait si l'on voulait écouter l'évènement <b>kernel.controller</b> :</p>
+
+<b>Réf services2.yml ==> 2e tag</b>
+
+<p>Il est temps de passer maintenant à la méthode <b>processBeta</b> afin de la compléter.</p>
+
+<p class="ai">
+On voit ici pleinement la puissance des tags vus au chapitre précédent.</p>
+
+<h4>c./ Création de la méthode à exécuter du listener</h4>
+
+<p>C'est donc le <b>BetaListener</b> qui est enregistré dans le gestionnaire d'évènements grâce au tag, et c'est lui qui décide quand 
+exécuter la fonction du <b>BetaHTMLAdder</b>.</p>
+
+<p class="ai">
+Le mantra à garder en tête est : "1 service = 1 fonction"</p>
+
+<p>Le listener permet également de passer les bons arguments à notre service BetaHTMLAdder. En effet, lorsque le gestionnaire d'événements
+exécute ses listeners, il ne se préoccupe pas de leurs arguments ! Le premier argument qu'il leur donne est un objet
+<b>Symfony\Component\EventDispatcher\Event</b>, représentant l'évènement en cours.</p>
+
+<p>Dans notre cas de l'évènement <b>kernel.response</b>, on a le droit à un objet 
+<b>Symfony\Component\HttpKernel\Event\FilterResponseEvent</b> qui hérite bien évidemment du premier.</p>
+
+<p>Dans notre cas, l'évèneemnt <b>FilterResponseEvent</b> dispose des méthodes suivantes :</p> 
+
+<b>Réf FilterResponseEvent.php</b> (attention, je l'ai déclaré comme une interface, mais c'est une classe normalement...)
+
+<p>Ce sont surtout les méthodes <b>getResponse()</b> et <b>setResponse()</b> qui vont m'être utiles pour mon BetaListener: elles 
+permettent respectivement de récupérer la réponse et de la modifier, c'est exactement ce que l'on veut !</p>
+
+<p>On a maintenant toutes les informations nécessaires, il est temps de construire réellement la méthode <b>processBeta</b> de notre
+listener. Tout d'abord, voici le principe général pour ce type de listener qui vient <em>modifier</em> une partie de l'évènement (ici,
+la réponse) : </p>
+
+<b>Réf BetaListener2.php</b>
+
+<p class="aw">
+Le premier <b>if</b> teste si la requête courante est bien la requête principale. En effet, on peut effectuer des sous-requêtes via
+la fonction <b>{{ render }}</b> de Twig ou alors la méthode <b>$this->forward()</b> d'un contrôleur. Cette condition permet de ne pas 
+réexécuter le code en cas d'une sous-requête (on n'a pas forcément envie de mettre des mentions "beta" sur chaque sous-requête !).</p>
+
+<p class="ai">
+Le gestionnaire d'événements passe, en plus de l'objet <b>$event</b>, deux autres arguments aux listeners qu'il exécute: le nom de 
+l'évènement courant, ansi que lui-même (l'objet EventDispatcher). Ce dernier argument permet à un listener qui écoute un événement
+A de dire au gestionnaire qu'il souhaite également écouter un autre évènement B. Cela peut être utile dans certains cas...</p>
+
+<p>Adaptons maintenant cette base à notre exemple, il suffit de rajouter l'appel à notre service BetaHTMLAdder :</p>
+
+<b>Réf BetaListener3.php</b>
+
+<p>Voilà, mon listener est maintenant opérationnel ! J'ai maintenant la bannière avec la mention "beta" sur toutes les pages de mon site.</p>
+
+<p>Pour vérifier que mon listener est bien exécuté, je peux aller dans l'onglet <b>Events</b> du <em>Profiler</em> montrant la liste des
+listeners exécutés, comme montre la figure suivante :</p>
+
+<figure>
+	<img src="events_profiler.png" alt="Profiler montre les événements">
+	<figcaption>Notre listener figure dans la liste des listeners exécutés</figcaption>
+</figure>
+
+<h3>4.) Méthodologie</h3>
+
+<p>Ainsi, le processus de création d'un listener qui va écouter un événement est simple, mais précis.Pour résumer, voici la méthode à 
+appliquer si je souhaite écouter un évènement :</p>
+
+<ul>
+	<li>Tout d'abord, créer un service qui va remplir la fonction que l'on souhaite. Ou alors, Cela peut tout aussi bien être un service
+		 existant.</li>
+	<li>Ensuite, bien choisir l'évènement  que l'on doit écouter. On a pris directement l'évènement <b>kernel.response</b> pour l'exemple,
+		mais ce n'est pas le seul évènement qui existe, loin de là.</li>
+	<li>Puis créer une classe (le futur listener) qui contient une méthode qui va faire le lien entre le déclenchement de l'évènement et
+		le code que l'on doit exécuter (le service précèdent). Dans notre exemple, c'était la méthode <b>processBeta</b>.</li>
+	<li>Enfin, définir sa classe en tant que service (sauf si c'en était déjà un), et ajouter à la définition du service le bon tag pour 
+		que le gestionnaire d'évènements retrouve le listener correspondant.</li>
+</ul>
+
+<h2>III./ Les évènements Symfony... et les nôtres !</h2>
+
+<p>Symfony déclenche déjà quelques évènements dans son processus interne. Mais il sera bien évidemment possible de créer puis déclencher
+nos propres évènements !</p>
+
+<h3>1.) Les évènements Symfony</h3>
+<h4>a./ L'évènement <b>kernel.request</b></h4>
+
+<p>Cet évènement est déclenché très tôt dans l'exécution d'une page, avant même que le choix du contrôleur à exécuter ne soit fait. Son
+objectif est de permettre à un listener de retourner immédiatement une réponse, sans même passer par l'exécution d'un contrôleur donc. 
+En effet, l'évènement <b>kernel.request</b> est déclenché avant qu'une route n'ait été trouvée: autrement dit, il est déclenché même lors 
+d'une erreur 404 (page non trouvée). Il est également possible de modifier la requête , en y rajoutant des attributs par exemple. Dans le 
+cas où un listener définit une réponse, alors les listeners suivants ne seront pas exécutés; on reparle de la priorité des listeners plus 
+loin.</p>
+
+<p>La classe de l'évènement donné en argument par le gestionnaire d'évènements est <b>GetResponseEvent</b>, dont les méthodes sont
+les suivantes :
+
+<b>Réf GetResponseEvent.php</b>
+
+<p class="ai">
+Pour être appelé, le Routeur écoute en réalité cet évènement <b>kernel.request</b> ! C'est comme cela que les composants Router et
+Kernel de Symfony fonctionnent de façon totalement indépendante ! Le Routeur ne fait qu'écouter un évènement, et s'il trouve une route, 
+il modifie la requête (objet <b>Request</b>) en lui ajoutant l'attribut <b>_controller</b>. Le Kernel, lui, ne fait que regarder
+cet attribut <b>_controller</b> pour savoir quel cotrôleur appeler, mais il ne sait en réalité pas qui a défini cet attribut.</p>
+
+<h4>b./ L'évènement <b>kernel.controller</b></h4>
+
+<p>Cet évènement est déclenché après que le contrôleur à exécuter ait été défini, mais avant de l'exécuter effectivement. Son objectif
+est de permettre à un listener de modifier le contrôleur à exécuter.</p>
+
+<p>Généralement, c'est l'évènement utilisé pour exécuter du code sur chaque page.</p>
+
+<p>La classe de l'évènement donné en argument par le gestionnaire d'évènements est <b>FilterControllerEvent</b>, dont les méthodes sont
+les suivantes :</p>
+
+<b>Réf FilterControllerEvent</b>
+
+<p>Voici comment utiliser cet évènement depuis un listener pour modifier le contrôleur à exécuter sur la page en cours :</p>
+
+<pre><strong>&lt;?php
+
+use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
+
+public function onKernelController(FilterControllerEvent $event) {
+	// Je peux récupèrer le contrôleur que le noyau avait l'intention d'exécuter
+	$controller = $event->getController();
+	
+	// Ici, je peux modifierla variable $controller, etc.
+	// $controller doit être de type PHP callable
+	
+	// Si j'ai modifié le contrôleur, je préviens le noyau qu'il faut exécuter le mien :
+	$event->setController($controller);
+}
+</strong></pre>
+
+<h4>c./ L'évènement <b>kernel.view</b></h4>
+
+<p>Cet évènement est déclenché lorsqu'un contrôleur n'a pas retourné d'objet <b>Response</b>. Son objectif est de permettre à un
+listener d'attraper le retour du contrôleur (s'il y en a un) pour soit construire une réponse lui-même, soit personnaliser l'erreur 
+levée.</p>
+
+<p>La classe de l'évènement donné en argument par le gestionnaire d'évènements est <b>GetResponseForControllerResultEvent</b> 
+(rien que ça !), dont les méthodes sont les suivantes :</p>
+
+<b>Réf GetResponseForControllerResultEvent.php</b>
+
+<p>Voici comment utiliser cet évènement depuis un listener pour construire une réponse à partir du retour du contrôleur de la page en
+cours :</p>
+
+<pre><strong>&lt;?php
+
+use Symfony\Component\HttpKernel\Event\GetResponseForControllerResultEvent;
+use Symfony\Component\HttpFoundation\Response;
+
+public function onKernelView(GetResponseForControllerResultEvent $event) {
+	// Je récupère le retour du contrôleur (ce qu'il a mis dans son "return")
+	$val = $event->getControllerResult();
+	
+	// Je crée une nouvelle réponse
+	$response = new Response();
+	
+	// Je construis ma réponse comme bon me semble...
+	
+	// Je définis la réponse dans l'évènement, qui la donnera au noyau qui, finalement, l'affichera
+	$event->setResponse($response);
+}
+</strong></pre>
+
+<h4>d./ L'évènement <b>kernel.response</b></h4>
+
+<p>Cet évènement est déclenché après qu'un contrôleur a retourné un objet <b>Response</b>; c'est celui que nous avons utilisé dans notre
+exemple <b>BetaListener</b>. Son objectif, comme j'ai pu m'en rendre compte, est de permettre à un listener de modifier la réponse
+générée par le contrôleur avant de l'envoyer à l'internaute.</p>
+
+<p>La classe de l'évènement  donné en argument par le gestionnaire d'évènements est <b>FilterResponseEvent</b>, dont les méthodes sont
+les suivantes:</p>
+
+<b>Réf FilterResponseEvent.php</b> (déjà vu)
+
+<p class="ai">
+C'est également cet évènement qui est écouté par <b>WebDebugToolbarListener</b>, le listener (situé dans <b>WebProfilerBundle</b>) qui
+ajoute la toolbar en bas des pages en mode dev.</p>
+
+<h4>e./ L'évènement <b>kernel.exception</b> </h4>
+
+<p>Cet évènement est déclenché lorsqu'une exception est levée. Son objectif est de permettre à un listener de modifier la réponse à 
+renvoyer à l'internaute, ou bien de modifier l'exception.</p>
+
+<p>La classe de l'évènement donné en argument par le gestionnaire d'évènements est <b>GetResponseForExceptionEvent</b>, dont les
+méthodes sont les suivantes : </p>
+
+<b>Réf GetResponseForExceptionEvent.php</b>
+
+<h4>f./ L'évènement <b>security.interactive_login</b></h4>
+
+<p>Cet évènement est déclenché lorsqu'un utilisateur s'identifie via le formulaire de connexion. Son objectif est de permettre à
+un listener d'archiver une trace de l'identification, par exemple.</p>
+
+<p>La classe de l'évènement donné en argument par le gestionnaire d'événements est 
+<b>Symfony\Component\Security\Http\Event\InteractiveLoginEvent</b>, dont les méthodes sont les suivantes :</p>
+
+<b>Réf InteractiveLoginEvent.php</b>
+
+<h4>g./ L'évènement <b>security.authentication.success</b></h4>
+
+<p>Cet évènement est déclenché lorsqu'un utilisateur s'identifie avec succès, quelque soit le moyen utilisé (formulaire de connexion, 
+cookies <b>remember_me</b>). Son objectif est de permettre à un listener d'archiver une trace de l'identification, par exemple.</p>
+
+<p>La classe de l'évènement donné en argument par le gestionnaire d'évènements est 
+<b>Symfony\Component\Security\Core\Event\AuthenticationEvent</b>, dont les méthodes sont les suivantes :</p>
+
+<b>Réf AuthenticationEvent.php</b>
+
+<h4>h./ L'évènement <b>security.authentication.failure</b></h4>
+
+<p>Cet évènement est déclenché lorsqu'un utilisateur effectue une tentative d'identification et échoue, quelque soit le moyen utilisé
+(formulaire de connexion, cookies <b>remember_me</b>). Son objectif est de permettre à un listener d'archiver une trace de la mauvaise
+identification, par exemple.</p>
+
+<p>Et la classe de l'évènement donné en argument par le gestionnaire d'évènements est 
+<b>Symfony\Component\Security\Core\Event\AuthenticationFailureEvent</b>, dont les méthodes sont les suivantes : </p>
+
+<b>Réf AuthenticationFailureEvent.php</b>
+
+<h3>2.) Créer nos propres évènements</h3>
+<h4>a./ La démarche générale</h4>
+
+<p>Les évènements Symfony couvrent la majeure partie du processus d'exécution d'une page, ou de l'identification d'un utilisateur.
+Cependant, on aura parfois besoin d'appliquer cette conception par évènement à notre propre code, notre propre logique. Cela permet, à
+l'instar des composants Symfony, de bien découpler les différents fonctions de notre site.</p>
+
+<p>La logique d'un évènement est la suivante : j'ai une fonctionnalité, par exemple l'ajout de messages (d'une annonce, d'une candidature,
+etc.) et je souhaite pouvoir l'étendre de façon découplée. Sur l'ajout de message, on pourrait par exemple :</p>
+
+<ul>
+	<li>déléguer l'indexation dans un moteur de recherche (pour ensuite faire des recherches textuelles),</li>
+	<li>vérifier si le message est un spam (méthode différente de notre contrainte précédente),</li>
+	<li>ou encore de recevoir des notifications à chaque message posté, etc.</li>
+</ul>
+
+<p>Toutes ces extensions autour de la fonctionnalité coeur qu'est l'ajout de message n'ont quasiment rien à voir avec elle, elles doivent
+donc être 100 % découplées et c'est ce qu'offrent les évènements. Dans ce cas, l'évènement serait "Ajout d'un message".</p>
+
+<p>Par la suite de l'exemple, nous restons sur cet évènement d'ajout de message, et la fonctionnalité que nous allons lier est un
+outil de surveillance de ces messages, qu'on appelera BigBrother. L'idée est d'avoir un outil qui permette de censurer les messages
+de certains utilisateurs et/ou de nous envoyer une notification lorsqu'ils postent des messages.</p>
+
+<p>Pour reproduire le comportement des évènements, il nous faut trois étapes :</p>
+
+<ul>
+	<li>D'abord, définir la liste de nos évènements possibles. Il peut bien entendu n'y en avoir qu'un seul.</li>
+	<li>Ensuite, construire la classe de l'évènement. Il faut pour cela définir les informations qui peuvent être échangées entre
+		celui qui émet l'évènement et celui ou ceux qui l'écoute(nt).</li>
+	<li>Enfin, déclencher l'évènement bien entendu.</li>
+</ul>
+
+<p class="aw">
+Pour l'exemple, nous allons placer tous les fichiers de la fonctionnalité BigBrother dans le répertoire <b>BigBrother</b> du bundle
+Platform. Mais en réalité, comme c'est une fonctionnalité qui s'appliquera à plusieurs bundles (la plateforme d'annonces, le 
+forum, et d'autres si j'en ai), il faudrait le mettre dans un bundle séparé.Soit un bundle commun dans mon site, du genre
+<b>CoreBundle</b>, soit carrément dans un bundle à lui, du genre <b>BigBrotherBundle</b>, vu que c'est une fonctionnalité que je peux
+tout à fait partager avec d'autres sites !</p>
+
+<h4>b./ Définir la liste de nos évènements</h4>
+
+<p>Je vais définir une classe avec juste des constantes qui contiennent le nom de nos évènements. Cette classe est facultative en soi,
+mais c'est une bonne pratique qui m'évitera d'écrire directement le nom de l'évènement. On utilisera ainsi le nom de la constante, 
+défini à un seul endroit, dans cette classe. On appelera arbitrairement cette classe <b>PlatformEvents</b>, voici son code :</p>
+
+<b>Réf PlatformEvents.php</b>
+
+<p>Cette classe ne fait donc rien, elle ne sert qu'à faire la correspondance entre <b>PlatformEvents::POST_MESSAGE</b> qu'on utilisera
+pour déclencher l'évènement et le nom de l'évènement en lui-même <b>oc_platform.post_message</b>.</p>
+
+<p class="well">
+Pourquoi avoir nommé <b>PlatformEvents</b> et non BigbrotherEvents ?<br /><br />
+
+Il faut bien faire la différence entre les évènements déclenchés et les listeners qui écoutent ces évènements. L'évènement ici est juste
+le fait qu'un message a été posté (dans le cadre d'une annonce, ou d'une candidature), il est donc lié à la plateforme d'annonces
+de façon générale. La fonctionnalité Bigbrother, qui écoute cet évènement, est totalement découplée ! Comme on en a parlé au dessus, il
+pourrait y avoir une autre fonctionnalté, d'indexation par exemple, qui pourrait écouter le même évènement.</p>
+
+<h4>c./ Construire la classe de l'évènement</h4>
+
+<p>La classe de l'évènement, c'est la classe de l'objet que le gestionnaire d'évènements va transmettre aux listeners. En réalité,
+on ne l'a pas encore vu, mais c'est lui qui déclenche l'évènement qui crée une instance de cette classe. Le gestionnaire d'évènements
+ne fait que la transmettre.</p>
+
+<p>Voici dans un premier temps le squelette commun à tous les évènements. On va appeler le nôtre <b>MessagePostEvent</b> :</p>
+
+<b>Réf MessagePostEvent.php</b>
+
+<p>C'est tout simplement une classe vide qui étend la classe <b>Event</b> du composant <b>Event_Dispatcher</b>.</p>
+
+<p class="ai">
+Au même titre que la classe des noms des évènements, la classe de l'évènement en lui-même n'est pas spécifique à notre Bigbrother ou 
+autre, on la place donc dans le namespace général Event.</p>
+
+<p>Ensuite, il faut rajouter la spécificité de notre évènement. On considère que l'évènement porte à la fois sur le contenu du message
+et son auteur. Tous nos listeners pourront avoir accès à ces informations sur l'évènement. On doit donc rajouter ces deux attributs
+à l'évènement :</p>
+
+<b>Réf MessagePostEvent2.php</b>
+
+<p>Il faudra faire attention aux getters et setters, car je dois les définir soigneusement en fonction de la logique de mon
+évènement: </p>
+
+<ul>
+	<li>Un getter doit tout le temps être défini sur mes attributs. Car si mes listeners n'ont pas besoin d'un attribut (ce qui 
+		justifierait l'absence d'un getter), alors l'attribut ne sert à rien.</li>
+	<li>Un setter ne doit être défini que si les listeners peuvent modifier la valeur de l'attribut. Ici, c'est le cas du message. 
+		Cependant, on interdit au listener de modifier l'auteur du message, cela n'aurait pas de sens.</li>
+</ul>
+
+<h4>d./ Déclencher l'évènement</h4>
+
+<p>Déclencher et utiliser un évènement se fait assez naturellement lorsqu'on a bien défini l'évènement et ses attributs. Reprenons le
+code de l'action du contrôleur <b>AdvertController</b> qui permet d'ajouter une annonce. Voici comment on l'adapterait pour
+déclencher l'évènement avant l'enregistrement effectif de l'annonce :</p>
+
+<b>Réf AdvertController.php</b>
+
+<p class="aw">
+Attention, on a utilisé ici la méthode <b>$advert->getUser()</b> mais on ne l'a pas encore créée dans le cours. Il faudrait que je 
+la mette en place...</p>
+
+<p>Pour déclencher un évènement à proprement parler, il faut d'abord créer une instance dudit évènement, puis appeler la méthode
+<b>dispatch()</b> de l'EventDispatcher :</p>
+
+<ul>
+	<li>Le premier argument est le nom de l'évènement déclenché, ici la constante <b>PlatformEvents::POST_MESSAGE</b></li>
+	<li>Le second argument est l'instance de l'évènement, ici notre instance <b>$event</b></li>
+</ul>
+
+<p>C'est tout pour déclencher un évènement ! Je n'ai plus qu'à reproduire ce comportement la prochaine fois que je créerai une action
+qui permet aux utilisateurs d'ajouter un nouveau message (livre d'or, messagerie interne, etc.)</p>
+
+<h4>e./ Ecouter l'évènement</h4>
+
+<p>Comme j'ai pu le voir, on a déclenché l'évènement alors qu'il n'y a pas de listener. Cela ne pose pas de problème, bien au contraire :
+cela va nous permettrer par la suite d'ajouter un ou plusieurs listeners qui seront exécutés aux milieu de notre code. &Ccedil;a, c'est du 
+découplage !</p>
+
+<p>Pour aller jusqu'au bout de l'exemple , on va voir une suggestion de listener. Mais d'abord, voici le service qui agit :</p>
+
+<b>Réf MessageNotificator.php</b>
+
+<p>Ainsi que le listener à proprement parler, qui vient exécuter cette fonction seulement lorsque l'auteur du message est dans une
+liste pré-définie (ici, je la passe en argument du constructeur) :</p>
+
+<b>Réf MessageListener.php</b>
+
+<p>Et bien sûr, la définition des services correspondants : </p>
+
+<b>Réf services3.yml</b>
+
+<p>On a mis ici arbitrairement une liste <b>[ "julien", "fabien", "george" ]</b> pour les noms d'utilisateurs à surveiler, mais je 
+peux personnaliser cette liste et même la rendre dynamique.</p>
+
+<p class="ai">
+Dans ce MessageListener exemple, on n'a pas utilisé la possibilité de <em>modifier</em> le contenu du message. Je dois savoir que c'est
+possible...</p>
+
+<h3>3.) Tableau récapitulatif des évènements de Symfony</h3>
+
+<table class="table table-striped table-condensed">
+	<tr class="warning"><th>Nom de l'évènement</th><th>Classe de l'évènement</th><th>Moment/Condition de déclenchement</th>
+		<td>Objectif principal</td></tr>
+	<tr>
+		<td><b>kernel.request</b></td><td>GetResponseEvent</td><td>Déclenché très tôt, avant l'exécution du contrôleur, juste avant 
+			l'exécution du routeur</td>
+			<td>Permettre à un listener d'apporter immédiatement une réponse, sans même l'exécution d'un contrôleur</td>
+	</tr>
+	<tr>
+		<td><b>kernel.controller</b></td><td>FilterControllerEvent</td>
+		<td>Lorsque le contrôleur, défini, est sur le point d'être exécuté</td>
+		<td>Pouvoir modifier le contrôleur à exécuter</td>
+	</tr>
+	<tr>
+		<td><b>kernel.view</b></td><td>GetResponseForControllerResultEvent</td>
+		<td>Lorsque le contrôleur n'a pas retourné d'objet <b>Response</b></td>
+		<td>Attraper le retour du contrôleur (s'il y en a un) pour constuire une nouvelle réponse ou bien personnaliser l'erreur levée</td>
+	</tr>
+	<tr>
+		<td><b>kernel.response</b></td><td>FilterResponseEvent</td>
+		<td>Lorsque le contrôleur a renvoyé un objet <b>Response</b></td>
+		<td>Pouvoir modifier la réponse générée avant de l'envoyer définitivement au client</td>
+	</tr>
+	<tr>
+		<td><b>kernel.exception</b></td><td>GetResponseForExceptionEvent</td>
+		<td>Lorsqu'une exception est lévée</td>
+		<td>Modifier la réponse à renvoyer ou bien personnaliser l'exception levée</td>
+	</tr>
+	<tr>
+		<td><b>security.interactive_login</b></td><td>InteractiveLoginEvent</td>
+		<td>Lorsqu'un utilisateur s'identifie via le formulaire de connexion</td>
+		<td>Archiver une trace de l'identification, par exemple</td>
+	</tr>
+	<tr>
+		<td><b>security.authentication.success</b></td><td>AuthenticationEvent</td>
+		<td>Lorsqu'un utilisateur s'identifie avec succès, quelque soit le moyen utilisé</td>
+		<td>Archiver une trace d'identification, par exemple</td>
+	</tr>
+	<tr>
+		<td><b>security.authentication.failure</b></td><td>AuthenticationFailureEvent</td>
+		<td>Lorqu'un utilisateur échoue à s'identifier, via formulaire ou cookie</td>
+		<td>Archiver une trace de la mauvaise identification par exemple</td>
+	</tr>
+</table>
+<h2>IV./ Aller un peu plus loin</h2>
+
+<p>Le gestionnaire d'évènements est assez simple à utiliser, et je connais en réalité tout ce qu'il faut savoir. Mais il y a trois
+points supplémentaires à traiter, qui peuvent m'être utiles.</p>
+
+<p>&Egrave;tudions donc les souscripteurs d'évènements, qui peuvent se mettre à écouter un évènement de façon dynamique, l'ordre 
+d'exécution des listeners, ainsi que la propagation des évènements.</p>
+
+<h3>1.) Les souscripteurs d'évènements</h3>
+
+<p>Les souscripteurs d'évènements sont assez semblables aux listeners. La seule différence est la suivante : au lieu d'écouter
+toujours le même évènement défini dans un fichier de configuration, un souscripteur peut écouter dynamiquement un ou plusieurs
+évènements.</p>
+
+<p>Concrètement, c'est l'objet souscripteur lui-même qui va dire au gestionnaire d'évènements les différents évènements qu'il
+veut écouter. Pour cela, un souscripteur doit implémenter l'interface 
+<b><a href="http://api.symfony.com/master/Symfony/Component/EventDispatcher/EventSubscriberInterface.html">EventSubscriberInterface</a></b>,
+qui ne contient qu'une seule méthode : <b>getSubscribedEvents()</b>. Cette méthode doit effectivement retourner les évènements que
+le souscripteur veut écouter.</p>
+
+<p>Voici par exemple comment on pourrait transformer <b>MessageListener</b> en un souscripteur :</p>
+
+<b>Réf MessageListener2.php</b>
+
+<p>Bien sûr, il faut ensuite déclarer ce souscripteur au gestionnaire d'évènements. Pour cela, ce n'est plus le tag 
+<b>kernel.event_listener</b> qu'il faut utiliser, mais : <b>kernel.event_subscriber</b>. Avec ce tag, le gestionnaire d'évènements
+récupère tous les soucripteurs d'évènements et les enregistre. </p>
+
+<p>Pas besoin d'ajouter des attributs <em>event</em> et <em>method</em> sur le tag, car c'est la méthode <b>getSubscribedEvents</b> 
+qui retourne ces information :</p>
+
+<b>Réf services4.yml (dans Bigbrother)</b>
+
+<h3>2.) L'ordre d'exécution des listeners</h3>
+
+<p>On peut définir l'ordre d'exécution  des listeners grâce à un indice <b>priority</b>. Cet ordre aura ainsi une importance 
+lorsqu'on verra comment stopper la propagation d'un évènement.</p>
+
+<h4>a./ La priorité des listeners</h4>
+
+<p>Je peux ajouter un indice de priorité à mes listeners, ce qui permet de personnaliser leur ordre d'exécution sur un même évènement.
+Plus cet indice de priorité est élèvé, plus le listener sera exécuté tôt, ie avant les autres. Par défaut, si l'on ne précise pas de 
+priorité, elle est de 0.</p>
+
+<p>Je peux la définir très simplement dans le tag de la définition du service. Voici comment la définir à <b>2</b> : </p>
+
+<b>Réf services5.yml</b> (dans Beta)
+
+<p>Et pour les souscripteurs, voici comment adapter la méthode <b>getSubscribedEvents</b> pour y ajouter l'information de la priorité.
+Ici, on met <b>2</b> également :</p>
+
+<b>Réf MessageListener3.php</b>
+
+<p>Je peux également définir une priorité négative, ce qui aura pour conséquence d'exécuter mon listener relativement tard dans
+l'évènement. Relativement, car s'il existe un autre listener avec une priorité de -128 alors que le mien est à -64, alors c'est lui
+qui sera exécuté après le mien.</p>
+
+<h3>3.) Propagation des évènements</h3>
+
+<p>J'ai pu remarquer que tous les évènements qu'on a vus précédemment avaient deux méthodes en commun: <b>stopPropagation()</b> et
+<b>isPropagationStopped()</b>. Eh bien, la première méthode permet à un listener de stopper la propagation de l'évènement en cours !</p>
+
+<p>La conséquence est donc directe : tous les autres listeners qui écoutaient l'évènement et qui ont une priorité plus faible <em>ne</em>
+seront <em>pas</em> exécutés. D'où l'importance de l'indice de priorité que nous venons de voir !</p>
+
+<p>Pour visualiser ce comportement, nous allons modifier légèrement notre <b>BetaListener</b>. Je rajoute cette ligne à la fin de 
+sa méthode <b>onKernelResponse</b></p>
+
+<b>Réf BetaListener4.php</b>
+
+<p>Et si j'actualise maintenat ma page Symfony, la barre d'outils aura disparu du bas de la page ! En effet, cette barre est ajoutée
+avec un listener sur l'évènement <b>kernel.response</b>, exactement comme notre metntion "beta". Or, comme notre listener a une priorité
+plus élevé, et qu'il a stoppé la propagation de l'évènement, le listener de la barre d'outils n'a pas été exécuté. Pour ma culture, 
+il s'agit de <b><a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Bundle/WebProfilerBundle/EventListener/WebDebugToolbarListener.php">
+Symfony\Bundle\WebProfilerBundle\EventListener\WebDebugToolbarListener</a></b>.</p>
+
+<p class="ai">
+La 2e méthode, <b>isPropagationStopped()</b>, permet de tester si la propagation a été stoppée <em>dans le listener qui a stoppé
+l'évènement</em>, ou alors là où l'évènement a été créé (<b>AdvertController.php</b> dans notre cas). Les autres listeners n'étant pas
+exécutés du tout, il est bien évidemment inutile de tester la propagation de leur code (à moins qu'eux-mêmes stoppent la propagation
+bien sûr).</p>
+
+<h2>En résumé : </h2>
+
+<ul>
+	<li>Un évènement correspond à un moment clé dans l'exécution d'une page ou d'une action.</li>
+	<li>On parle de <em>déclencher un évènement</em> lorsqu'on signale au gestionnaire d'évènements qu'un certain évènement vient de
+		se produire.</li>
+	<li>On dit qu'un listener <em>écoute un évènement</em> lorsqu'on signale au gestionnaire d'évènements qu'il faut exécuter ce listener
+		dès qu'un certain évènement se produit.</li>
+	<li>Un listener est une classe qui remplit une fonction, et qui écoute un ou plusieurs évènements pour savoir quand exécuter
+		sa fonction.</li>
+	<li>On définit les évènements à écouter via les tags service listener.</li>
+	<li>Il existe plusieurs évènements de base dans Symfony, et il est possible de créer les nôtres.</li>
+	<li>Le code du cours tel qu'il doit être à ce stade est disponible sur la branche 
+		<a href="https://github.com/winzou/mooc-symfony/tree/iteration-18">iteration-18</a> du dépôt Github.</li>
+</ul>
+
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

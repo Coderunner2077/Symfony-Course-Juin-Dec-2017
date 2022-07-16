@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Les relations entre entités avec Doctrine2</title>
+</head>
+<body>
+												<h1>Les relations entre entités avec Doctrine2</h1>
+
+L'objectif de ce chapitre est de construire un ensemble d'entités en relation les unes avec les autres. Ces relations permettent de
+disposer d'un ensemble cohérent, qui se manipule simplement et en toute sécurité pour ma base de données.
+
+<h2>I./ Présentation</h2>
+<h3>1.) Présentation</h3>
+
+Il s'agira ici d'apprendre à établir des relations entre mes entités. Je pourrai alors faire quelque chose comme ceci : 
+<b>$utilisateur->getCommentares()</b>.
+
+<h3>Les différents types de relation</h3>
+
+Il y a plusieurs façons de lier des entités entre elles. En effet, il n'est pas pareil de lier une multitide de commentaires à un
+seul article et de lier un membre à un seul groupe. Il existe donc plusieurs types de relations, pour répondre à plusieurs besoins
+concrets. Ce sont les relations <b>OneToOne</b>, <b>OneToMany</b> et <b>ManyToMany</b>. On les étudie juste après ces quelques notions
+de base à avoir.
+
+<h3>2.) Notions techniques d'ORM à savoir</h3>
+
+Avant de voir en détail les relations, il faut comprendre comment elles fonctionnent. Il y a juste deux notions à savoir avant 
+d'attaquer.
+
+<h4>a./ Notion de propriétaire et d'inverse</h4>
+
+La notion de propriétaire et d'inverse est absraite mais importante à comprendre. <em>Dans une relation entre deux entités, il y a
+toujours une entité dite <b>propriétaire</b>, et une dite <b>inverse</b></em>. Pour comprendre cette notion, il faut revenir à la
+vielle époque, lorsque l'on faisait les bases de données à la main. <em>L'entité propriétaire est celle qui contient la référence à
+l'autre entité.</em> Attention, cette notion - à avoir en tête de la création des entités - n'est pas liée à ma logique métier, elle
+est purement technique.
+
+Prenons un exemple simple, les commentaires de mes annonces. En SQL pur, je dispose de la table <b>comment</b> et de la table 
+<b>advert</b>. Pour créer une relation entre ces deux tables, je vais mettre naturellement une colonne <b>advert_id</b> dans la table
+<b>comment</b>. La table <b>comment</b> est donc propriétaire de la relation, car c'est elle qui contient la colonne de liaison 
+<b>advert_id</b>. Assez simple au final.
+
+Attention: je ne vais pas créer une colonne <b>advert_id</b> dans la table de commentaires ! C'est une image, de ce que je faisais
+avant. Aujourd'hui on va laisser Doctrine gérer tout ça, et on ne va jamais mettre la main dans phpMyAdmin. 
+
+<h4>b./ Notion d'unidirectionnalité et de bidirectionnalité</h4>
+
+Cette notion est également simple à comprendre: une <em>relation peut être à sens unique ou à doube sens.</em> On va d'abord traiter
+les relations à sens unique, dites unidirectionnelles, dans ce chapitre. Cela signifie que je pourrai écrire 
+<b>$entiteProprietaire->getEntiteInverse()</b> (dans mon exemple <b>$comment->getAdvert()</b>), mais 
+pas <b>entiteInverse->getEntiteProprietaire()</b> (dans mon exemple <b>$advert->getComments()</b>). Attention, cela ne m'empêchera pas de
+récupérer les commentaires d'une annonce, on utilisera juste une autre méthode, via le repository.
+
+Cette limitation me simplifie la façon de définir les relations. Pour bien travailler avec, il suffit juste de me rappeler qu'on ne 
+peut pas faire <b>$entiteInverse->getEntiteProprietaire()</b>.
+
+Pour des cas spécifiques, ou des références dans mon code, cette limitation peut être contournée en utilisant les relations à double
+sens, dites bidirectionnelles. Je les verrai rapidement à la fin de ce chapitre. 
+
+<h3>3.) Rien n'est magique</h3>
+
+<b>$advert->getComments()</b> est vraiment sympa, mais il déclenche bien une requête SQL ! Lorsqu'on récupère une entité (mon 
+<b>$advert</b> par exemple), Doctrine ne récupère pas toutes les entités qui lui sont liées (les commentaires dans l'exemple), et
+heureusement ! S'il le faisait, cela seraît extrêmement lourd, puisqu'on ne veut pas forcément récupérer les toutes les commentaires
+associées à une annonce.
+
+Doctrine utilise ce qu'on appelle le <em>Lazy loading</em>, <em>"chargement fainéant"</em> en français. C'est-à-dire qu'il ne charge
+les entités à l'autre bout de la relation que si je veux réellement accéder à ces entités. C'est donc uniquement au moment où je fais
+<b>$advert->getComments()</b> que Doctrine charge les commentaires (avec une requête SQL donc) puis me les transmet. 
+
+Heureusement pour moi, il est possible d'éviter cette requête supplémentaire ! Parce que cette syntaxe est vraiment pratique, il serait
+dommage de s'en priver pour cause de requêtes SQL trop nombreuses. Il faudra simplement utiliser mes propres méthodes pour charger
+les entités, dans lesquelles je ferai les jointures toutes simples. L'idée est de dire à Doctrine: "Charge l'entité Advert, mais
+également tous ses commentaires". Avoir mes propres méthodes pour cela permet de les exécuter que si je veux vraiment avoir les 
+commentaires en plus de l'annonce. En somme, on se garde le choix de charger ou non la relation. 
+
+Mais je verrai tout cela dans le prochain chapitre sur les repositories. Pour l'instant, revenons à nos relations !
+
+<h2>II./ Relation One-To-One</h2>
+<h3>1.) Présentation</h3>
+
+La relation <em>OneToOne</em>, ou <b>1..1</b>, est assez classique. Elle correspond, comme son nom l'indique, à une relation unique
+entre deux objets.
+
+Pour illustrer cette relation dans le cadre de ma plateforme d'annonces, je vais créer une entité <b>Image</b>. Imaginons qu'on offre
+la possibilité de lier une image à une annonce, une sorte d'icône pour illustrer un peu l'annonce. <em>Si à chaque annonce on ne peut 
+afficher qu'une seule image, et que chaque image ne peut être liée qu'à une seule annonce</em>, alors on est bien dans le cadre d'une 
+relation One-To-One. La figure suivante schématise tout cela :
+
+<figure>
+	<img src="onetoone.png" alt="One to One">
+	<figcaption>Relation One-To-One</figcaption>
+</figure>
+
+Tout d'abord, histoire qu'on parle bien de la même chose, créons cette entité <b>Image</b> avec au moins les attributs <b>url</b>
+et <b>alt</b> pour qu'on puisse l'afficher correctement. 
+
+Réf Image.php
+
+rappel : commande <b>php bin/console doctrine:generate:entities OCPlatformBundle:Image</b> pour générer les getters / setters.
+
+<h3>2.) Définition de la relation dans les entités</h3>
+<h4>a./ Annotation</h4>
+
+Pour établir une relation One-To-One entre deux entités <b>Advert</b> et <b>Image</b>, la syntaxe est la suivante :
+
+<b>Entité propriétaire, Advert</b> : réf <b>Advert.php</b>
+
+L'entité Image va rester telle quelle.
+
+Tout d'abord, on a choisi de définir l'entité <strong>Advert</strong> comme entité propriétaire de la relation, car un 
+<b>Advert</b> "possède" une <b>Image</b>. On aura donc plus tendance à récupérer l'image à partir de l'annonce et non l'inverse.
+Cela permet également de rendre intépendante l'entité <b>Image</b>: elle pourra être utilisée par d'autres entités que Advert, de
+façon totalement invisible pour elle.
+
+Ensuite, je vois que seule l'entité propriétaire a été modifiée, ici <b>Advert</b>. C'est parce qu'on a une relation unidirectionnelle.
+Et dans une relation unidirectionnelle, l'entité inverse, ici <b>Image</b>, ne sait en fait même pas qu'elle est liée à une autre
+entité, ce n'est pas son rôle.
+
+Enfin, concernant l'annotation en elle-même: 
+
+<b>
+@ORM\OneToOne(targetEntity="OC\PlatformBundle\Entity\Image", cascade={"persist"})
+</b>
+
+Il y a plusieurs choses à savoir sur cette annotation : 
+
+	-	Elle est incompatible avec l'annotation <b>@ORM\Column</b> qu'on a vue dans un chapitre précédent. En effet, l'annotation
+	<b>Column</b> définit une valeur (un nombre, une chaîne de caractères, etc.) alors que <b>OneToOne</b> définit une relation
+	vers une autre entité. Lorsque j'utilise l'un, je ne peux pas utiliser l'autre sur le même attribut
+	-	Elle possède au moins l'option <b>targetEntity</b>, qui vaut simplement le namespace complet vers l'entité liée.
+	-	Elle possède d'autre options facultatives, dont l'option <b>cascade</b> (à découvrir plus loin)
+	
+
+Rappel: appel à <b>doctrine:schema:update</b>.
+
+<h4>b./ Rendre une relation non-facultative</h4>
+
+Par défaut, une relation est facultative, ie je peux avoir un <b>Advert</b> qui n'a pas d'<b>Image</b> liée. C'est le comportement
+que l'on veut pour cet exemple: on se donne le droit d'ajouter une annonce sans forcément trouver une image d'illustration. Si je 
+souhaite forcer la relation, il faut ajouter l'annotation <b>JoinColumn</b> et définir son option <b>nullable</b> à false, comme
+ceci :
+
+<b>
+/**
+  * @ORM\OneToOne(targetEntity="OC\PlatformBundle\Entity\Image", cascade={"persist"})
+  * @ORM\JoinColumn(nullable=false)
+  */
+ private $_image;
+</b>
+
+<h4>c./ Les opérations de cascade</h4>
+
+Parlons maintenant de l'option <b>cascade</b> que l'on a vu plus haut. Cette option permet de "cascader" les opérations que l'on 
+ferait sur l'entité <b>Advert</b> à l'entité <b>Image</b> liée par la relation.
+
+Pour prendre l'exemple le plus simple, si je supprime une entité <b>Advert</b> via un <b>$em->remove($entity)</b>. Si je ne précise
+rien, Doctrine va supprimer l'<b>Advert</b>, mais pas l'entité <b>Image</b> liée. Or ce n'est pas forcément ce que je veux ! Si mes
+images ne sont liées qu'à des annonces, alors la suppression de l'annonce doit entraîner la suppression de l'image, sinon j'aurai
+des <b>Images</b> orphelines dans ma base de données. C'est le but de <b>cascade</b>. Attention, si mes images sont liées à des
+annonces aussi à d'autres entités, alors je ne veux pas forcément supprimer directement l'image d'une annonce, car elle pourrait 
+être liée à une autre entité.
+
+On peut cascader des opérations de suppression, mais également de persistance. En effet, on a vu qu'il fallait persister une
+entité avant d'exécuter le <b>flush()</b>, afin de dire à Doctrine qu'il doit enregistrer l'entité en base de données. Cependant,
+dans le cas d'entités liées, si on fait un <b>$em->persist($advert)</b>, Doctrine ne sait pas ce qu'elle doit faire pour l'entité
+<b>Image</b> contenue dans l'entité <b>Advert</b> à moins que l'on ne le lui dise : soit en faisant manuellement un <b>persist()</b>
+sur l'annonce et sur l'image, soit en définissant dans l'annotation de la relation qu'un <b>persist()</b> sur l'<b>Advert</b>
+doit se "propager" sur l'<b>Image</b> liée.
+
+C'est ce que nous avons fait dans l'annotation: on a défini <b>cascade</b> sur l'opération <b>persist()</b>, mais pas sur l'opération
+<b>remove()</b> (car on se réserve la possibilité d'utiliser les images pour autre chose que des annonces).
+
+<h4>d./ Getter et setter</h4>
+
+Je peux définir les getter/setter de l'entité proprétaire, ici <b>Advert</b>, soit avec la commande doctrine, soit manuellement. 
+Dans ce dernier cas, je dois faire attention au setter, car il y a quelques nuances à prendre en compte concernant le setter pour
+l'attribut <b>$image</b> : 
+
+<b>
+public function setImage(Image $image = null) {
+	$this->_image = $image;
+}
+</b>
+
+Premièrement, on a forcé le type <b>Image</b> pour ce setter.
+Deuxièmement, on a rendu cet argument facultatif, notre relation OneToOne <b>Advert&lt;=&gt;Image</b> étant facultative.
+
+Attention: dans la base de données, une colonne <b>image_id</b> a bien été ajouté à la table <b>advert</b>. Cependant, je ne dois
+surtout pas confondre cette colonne <b>image_id</b> avec mon attribut <b>_image</b>, et garder bien ces deux points en tête : 
+	-	1./ L'objet <b>Advert</b> <em>ne contient pas</em> d'attribut <b>image_id</b>
+	-	2./ L'attribut <b>$_image</b> de l'objet <b>Advert</b> <em>ne contient pas</em> l'id de l'<b>Image</b> liée, il contient une
+			instance de la classe <b>OC\PlatformBundle\Entity\Image</b> qui, <em>elle</em>, contient un attribut <b>id</b>.
+			
+Je ne vais donc jamais écrire <b>$advert->getImageId()</b>, pour récupérer l'id de l'image liée, il faut d'abord récupérer l'image
+elle-même puis son id, comme ceci : 
+<b>$advet->getImage()->getId()</b>
+
+<h4>e./ Exemple d'utilisation</h4>
+
+Pour utiliser cette relation, c'est très simple. Voici un exemple pour ajouter une nouvelle annonce <b>Advert</b> et son <b>Image</b>
+depuis un contrôleur. Modifions l'action <b>addAction()</b>, qui était déjà bien complète :
+
+Réf <b>AdvertController.php => addAction()</b>
+
+Si j'exécute cette page, voici les requêtes SQL générées par Doctrine, que je peux voir dans le Profiler :
+
+<figure>
+	<img src="advert_image_profiler.png" alt="Deux requêtes générées">
+	<figcaption>Deux requêtes sont générées: l'ajout de l'image et l'ajout de l'annonce</figcaption>
+</figure>
+
+Il faudra adapter la vue bien entendu :
+
+<b>
+{% if advert.image is not null %}
+	&lt;img src="{{ advert.image.url }}" alt="{{ advert.image.url }}"&gt;
+{% endif %}
+</b>
+
+Et voici un autre exemple, qui modifierait l'<b>Image</b> d'une annonce qui existerait déjà . Ici je vais juste prendre juste une
+méthode de contrôleur arbitraire (d'ailleurs je pourrais l'implémenter réellement) :
+
+Réf <b>AdvertController.php => editImageAction($advertId)</b>
+
+<h2>III./ Relation Many-To-One</h2>
+<h3>1.) Présentation</h3>
+
+La relatin <em>Many-To-One</em>, ou <b>n..1</b>, est assez classique également. Elle correspond, comme son nom l'indique, à une
+relation qui permet à une entité A d'avoir une relation avec plusieurs entités B. 
+
+Pour illustrer cette relation dans le cadre de ma plateforme d'annonce, je vais créer une entité <b>Application</b> qui représente
+la candidature d'une personne intéressée par l'annonce. L'idée est de pouvoir ajouter <em>plusieurs candidatures à une annonce, et
+que chaque candidature ne soit liée qu'à une seule annonce</em>. Je vais ainsi créer plusieurs candidatures (<em>Many</em>) à 
+lier (<em>To</em>) à une seule annonce (<em>One</em>). La figure suivante schématise tout cela :
+
+<figure>
+	<img src="manytoone.png" alt="ManyToOne">
+	<figcaption>Une annonce peut contenir plusieurs candidatures, alors qu'une candidature n'appartient qu'à une seule annonce</figcaption>
+</figure>
+
+Je vais donc créer cette entité <b>Application</b> avec les attributs <b>author</b>, <b>content</b> et <b>date</b> :
+
+Ref <b>Application.php</b>
+
+<h3>2.) Définition de la relation entre les entités</h3>
+<h4>a./ Annotation</h4>
+
+Pour établir cette relation dans mon entité, la syntaxe est la suivante:
+
+Réf <b>Application.php</b> (c'est l'entité propriétaire)
+Et <b>pour Advert, l'entité invere, pas de changement.</b>
+
+L'annotation à utiliser est tout simplement <b>ManyToOne</b>.
+
+Première remarque: l'entité propriétaire pour cette relation est <b>Application</b>, et non <b>Advert</b>. Pourquoi ? Parce que le
+propriétaire est celui qui contient la colonne référence. Ici, on aura bien une colonne <b>advert_id</b> dans la table 
+<b>application</b>. En fait, de façon systématique, c'est le côté <em>Many</em> d'une relation <em>Many-To-One</em> qui est le 
+propriétaire, je n'ai pas le choix. Ici, on a plusieurs candidatures pour une seule annonce, le <em>Many</em> correspond donc aux
+candidatures, donc l'<b>Application</b> est la propriétaire.
+
+Deuxième remarque : on a volontairement ajouté l'annotation <b>JoinColumn</b> avec son attribut <b>nullable</b> à <b>false</b>, pour
+interdire la création d'une candidature sans annonce. En effet, dans mon cas, une candidature qui n'est rattachée à aucune annonce
+n'a pas de sens (on n'autorise pas les candidatures spontanées). Après, bien sûr, il se peut que dans mon cas je laisse la 
+possibilité au côté <em>Many</em> de la relation d'exister sans forcément être attaché à un côté <em>One</em>.
+
+Rappel : commande <b>doctrine:schema:update</b> !
+
+<h4>b./ Getter et setter</h4>
+
+Ajoutons maintenant le getter et setter correspondants dans l'entité propriétaire.
+
+Réf <b>Application.php ==> setAdvert(), getAdvert()</b>
+
+Note: l'argument de <b>setAdvert(Advert $advert)</b>
+
+<h4>c./ Exemple d'utilisation</h4>
+
+La méthode pour gérer une relation <em>Many-To-One</em> n'est pas très différente de celle pour une relation <em>One-To-One</em>.
+
+Tout d'abord, pour ajouter un nouvel <b>Advert</b> et ses <b>Application</b>, modifions la méthode <b>addAction()</b> de mon 
+contrôleur :
+
+Réf <b>AdvertController2.php</b>
+
+Pour info, voici comment on modifie la méthode <b>viewAction()</b> du contrôleur pour passer également toutes les candidatures
+de l'annonce à la vue :
+
+Ici, je constate qu'on a utilisé la méthode <b>findBy()</b>, qui récupère toutes les candidatures selon un tableau de critères. En
+l'occurence, le tableau de critères signifie qu'il ne faut récupérer que les candidatures qui sont liées à l'annonce donnée, on en
+reparlera bien sûr dans le prochain chapitre.
+
+Et bien entendu, il faudra adapter la vue si je veux afficher la liste des candidatures que je viens de lui passer.
+
+<h2>IV./ Relation Many-To-Many</h2>
+<h3>1.) Présentation</h3>
+
+La relation <em>Many-To-Many</em>, ou <b>n..n</b>, correspond à une relation qui permet à plein d'objets d'être en relation avec
+plein d'autres !
+
+Prenons l'exemple cette fois-ci des annonces de ma plateforme, réparties dans les catégories. <em>Une annonce peut appartenir à
+plusieurs catégories.</em> A l'inverse, <em>une catégorie peut contenir plusieurs annonces.</em> On a donc une relation 
+<em>Many-To-Many</em> entre <b>Advert</b> et <b>Categorie</b>. La figure suivante schématise tout cela :
+
+<figure>
+	<img src="manytomany.png" alt="ManyToMany">
+	<figcaption>Une annonce peut appartenir à pluseurs catégories et une catégorie peut contenir plusieurs annonces</figcaption>
+</figure>
+
+Cette relation est particulière dans le sens où Doctrine va devoir créer une table intermédiaire. En effet, avec la méthode 
+traditionnelle en base de données, comment définirait-once genre de relation ? J'ai une table <b>advert</b>, une autre table
+<b>category</b>, mais j'ai surtout besoin d'une table <b>advert_category</b> qui fait la liaison entre les deux. Cette table de
+liaison ne contient que deux colonnes: <b>advert_id</b> et <b>category_id</b>. Cette table intermédiaire, je ne la connaîtrai pas:
+elle n'apparaît pas dans  mes entités, et c'est Doctrine qui la crée et qui la gère tout seul !
+
+Encore une fois, créons cette entité <b>Category</b> avec au moins un attribut <b>name</b>. 
+
+Réf <b>Category.php</b>
+
+<h3>2.) Définition de la relation dans les entités</h3>
+<h4>a./ Annotation</h4>
+
+Réf <b>Advert2.php</b>
+
+Et <b>pour Category.php, pas de changement</b>.
+
+On a mis <b>Advert</b> comme propriétaire de la relation. C'est un choix purement arbitraire, et on peut donc faire comme bon nous 
+semble. Mais récupérer les catégories d'une annonce se fera assez souvent, alors que récupérer les annonces  d'une catégorie moins.
+Et puis, pour récupérer les annonces d'une catégorie, on aura sûrement besoin de personnaliser la requête, donc on le fera de
+toute façon depuis <em>CategoryRepository</em>, on en reparlera.
+
+<h4>b./ Getters et setters</h4>
+
+Dans ce type de relation, il faut soigner un peu plus l'entité propriétaire. Tout d'abord, on a pour la première fois un attribut
+(ici <b>$categories</b>) qui contient une liste d'objets, et non pas un seul objet. C'est parce qu'il contient une liste d'objets 
+qu'on a mis le nom de cet attribut au pluriel. Les listes d'objets avec Doctrine2 ne sont pas de simples tableaux, mais des
+<b>ArrayCollection</b>, il faudra donc définir l'attribut comme tel dans le constructeur. Un <b>ArrayCollection</b> est un objet
+utilisé par Doctrine2, qui a toutes les propriétés d'un tableau normal. Je peux faire un <b>foreach</b> dessus, et le traiter comme
+n'importe quel tableau. Il dispose juste de quelques méthodes supplémentaires très pratiques,  que l'on verra.
+
+Ensuite, le getter est classique et s'appelle <b>getCategories()</b>. Par contre, c'est les setters qui vont différer un peu. En effet,
+<b>$categories</b> est une liste de catégories, mais au quotidien ce qu'on va faire c'est ajouter une à une des catégories à cette
+liste. Il me faut donc une méthode <b>addCategory()</b> et non <b>setCategories()</b>. Du coup, il me faudra également définir
+une méthode pour supprimer une catégorie de la liste, que l'on appelle <b>removeCategory()</b>.
+
+Pour ajouter ces méthodes, je peux recourir à la console, ou le faire à la main :
+
+Réf <b>Advert2.php</b> 
+
+Rappel: commande <b>doctrine:schema:update</b> !
+
+Si je vérifie dans phpMyAdmin, je noterai que la table créée s'appelle <b>advert_category</b>, or depuis le début je préfixe mes
+noms de table avec "oc". Comment le faire également pour la table de jointure ? Il faut pour cela rajouter l'annotation
+<b>JoinTable</b>, qui permet de personnaliser un peu cette table, voici comment changer son nom par exemple :
+
+Réf <b>Advert2.php</b>
+
+<h4>c./ Remplissons la base de données avec les fixtures</h4>
+
+Avant de voir un exemple, je vais ajouter quelques catégories en base de données, histoire d'avoir de quoi jouer avec. Pour cela,
+petit aparté, je vais faire une fixture Doctrine ! Cela va me permettre d'utiliser le bundle qu'on a installé lors du chapitre sur 
+Composer.
+
+Les fixtures Doctrine permettent de remplir la base de données avec un jeu de données que je vais définir. Cela permet de pouvoir 
+tester avec de vraies données, sans de voir les retaper à chaque fois: on les inscrit une fois pour toutes, et ensuite elles sont
+toutes insérées en base de données en une seule commande.
+
+Tout d'abord, créons notre fichier de fixture pour l'entité <b>Category</b>. Les fixtures d'un bundle se trouvent dans le répertoire
+<b>DataFixtures/ORM</b> (ou <b>ODM</b> pour les documents). Voici à quoi ressemble ma fixture <b>LoadCategory</b> :
+
+Réf <b>LoadCategory.php</b>
+
+C'est tout ! On peut dès à présent insérer ces données dans la base de données. Voici donc la commande à exécuter: 
+
+<b>
+php bin/console doctrine:fixtures:load
+</b>
+
+Et voilà! Les cinq catégories définies dans le fichier du fixture sont carrément enregistrées en base de données, on va pouvoir 
+s'en servir dans nos exemples. Par la suite, on rajoutera d'autres fichiers de fixture pour insérer d'autres entités en base de
+données: la commande les traitera tous l'un après l'autre.
+
+Attention: l'exécution de la commande Doctrine pour insérer les fixtures vide totalement la base de données avant d'insérer les 
+nouvelles données. Si je veux ajouter les fixtures en plus des données déjà présentes, il faut ajouter l'option <b>--append</b> 
+à la commande précédente. Cependant, c'est rarement ce que je veux, car à la prochaine exécution des fixtures, je vais insérer
+une nouvelle fois les mêmes catégories...
+
+Attention: Du coup, en vidant ma base de données Doctrine vient de supprimer mes annonces. Je devrais en recréer en allant sur la
+page <b>/platform/add</b>. 
+
+<h4>d./ Exemples d'utilisation</h4>
+
+Voici un exemple pour ajouter une annonce existante à plusieurs catégories existantes. Je vais mettre ce code dans ma méthode
+<b>viewAction()</b> par exemple :
+
+Réf <b>AdvertController2.php => editAction()</b>
+
+Si je vais sur la page d'édition d'une annonce, j'obtiendrai les requêtes SQL de la figure suivante dans le profiler :
+
+<figure>
+	<img src="advert_category_profiler.png" alt="Advert <=> category dans Profiler">
+	<figcaption>
+		Doctrine a inséré des lignes dans la table oc_advert_category, qui matérialise la relation ManyToMany entre mes	deux entiés
+	</figcaption>
+</figure> 
+
+Voici un autre exemple pour enlever toutes les catégories d'une annonce. Modifions la méthode <b>deleteAction()</b> pour l'action:
+
+Réf <b>AdvertCOntroller2.php ==> deleteAction()</b>
+
+Note: j'ai récupéré toutes les catégories de mon annonce avec un simple <b>$advert->getCategories()</b> !
+
+Enfin, voici un dernier exemple pour afficher les catégories d'une annonce dans la vue:
+
+<b>
+{# src/OC/PlatformBundle/Resources/view/Advert/view.html.twig #}
+
+{% if not advert.categories.empty %}
+	&lt;p&gt;Cette annonce est parue dans les catégories suivantes :
+		{% for category in advert.categories %}
+			{{ category.name }}{% if not loop.last %}, {% endif %}
+		{% endfor %}
+	&lt;/p&gt;
+{% endif %}
+</b>
+
+Notons principalement :
+
+	-	L'utilisation du <b>empty</b> de l'<b>ArrayCollection</b>, pour savoir si la liste des catégories est vide ou non;
+	-	Le {{ advert.categories }} pour récupérer les catégories de l'annonce. C'est exactement la même chose que mon 
+			mon <b>$advet->getCategories()</b> côté PHP
+			
+On peut observer le résultat sur la figure suivante :
+
+<figure>
+	<img src="view_advert_vue.png" alt="Vue de l'action view">
+	<figcaption>On peut afficher facilement les catégories d'une annonce</figcaption>
+</figure>
+
+Remarquons également les quatre requêtes générées par Doctrine, présentes sur la figure suivante :
+
+	-	1./ Récupération de l'annonce
+	-	2./ Récupération de toutes les candidatures liées à cette annonce (je faisais cette requête dans le contrôleur)
+	-	3./ Récupération de l'image liée à l'annonce (je déclenche cette requête depuis la vue !)
+	-	4./ Récupération de toutes les catégories liées à cette annonce (déclenchée depuis la vue également)
+	
+<figure>
+	<img src="view_advert_sql.png" alt="Les quatre requêtes par Doctrine">
+	<figcaption>Les quatre requêtes générées par Doctrine</figcaption>
+</figure>
+
+<h2>V./ Relation Many-To-Many avec attributs</h2>
+<h3>1.) Présentation</h3>
+
+La relation <em>Many-To-Many</em> qu'on vient de voir peut suffire dans bien des cas, mais elle est en fait souvent incomplète pour
+les besoins d'une application.
+
+Pour illustrer ce manque, rien de tel qu'un exemple: considérons l'entité <b>Produit</b> d'un site e-commerce ainsi qu'une entité
+<b>Commande</b>. Une commande contient plusieurs produits, et bien entendu un même produit peut être dans différentes commandes. On
+a donc bien une relation <em>Many-To-Many</em>. Lorsqu'un utilisateur ajoute un produit à une commande, où met-on la quantité de
+ce produit ? Si je veux 3 exemplaires de Harry Potter, où mettre cette quantité ? Dans l'entité <b>Commande</b> ? Non, cela n'a pas
+de sens. Dans l'entité <b>Produit</b> ? Non, cela n'a pas de sens non plus. Cette quantité est un <em>attribut de la relation
+qui existe entre <b>Produit</b> et <b>Commande</b></em>, et non un attribut de <b>Produit</b> ni de <b>Commande</b>.
+
+Il n'y a pas de moyen simple pour gérer les attributs d'une relation avec Doctrine. Pour cela, il faut esquiver en créant
+simplement <em>une entité intermédiaire qui va représenter la relation</em>, appelons-la <b>CommandeProduit</b>. Et c'est dans cette
+entité que l'on mettra les attributs de la relation, comme notre quantité. Ensuite, il faut bien entendu mettre en relation cette
+entité intermédiaire avec les deux autres entités d'origine, <b>Commande</b> et <b>Produit</b>. Pour cela, il faut logiquement faire :
+
+<b>Commande</b> <em>One-To-Many</em> <b>CommandeProduit</b> <em>Many-To-One</em> <b>Produit</b>. 
+
+En effet, une commande (<em>One</em>) peut avoir plusieurs relations avec des produits (<em>Many</em>), pluseurs <b>CommandeProduit</b>, 
+donc ! La relation est symétrique pour les produits.
+
+Attention, dans le titre de cette section, on a parlé de la relation <em>Many-To-Many avec attributs</em>, mais il s'agit bien en 
+fait de deux relations <em>Many-To-One</em> des plus normales. On ne va donc rien apprendre dans cette section, car on sait déjà 
+faire une <em>Many-To-One</em>. Il s'agit juste de me présenter une astuce qu'il faut bien connaître et savoir utiliser, donc 
+prenons le temps de bien la comprendre.
+
+Faisons une relation entre les annonces et les compétences, soit entre les entités <b>Advert</b> et <b>Skill</b>, et l'attribut
+de la relation sera le niveau requis. L'idée est de pouvoir afficher sur chaque annonce la liste de compétences requises pour la
+mission (Symfony, C++, Photoshop, etc.) avec le niveau dans chaque compétence (Débutant, Avisé, Expert). On a alors l'analogie 
+suivante :
+
+<b>
+	Advert		 	&lt;=&gt;	Commande
+	AdvertSkill 		&lt;=&gt;	CommandeProduit
+	Skill			&lt;=&gt;	Produit
+</b>
+
+Et donc : <b>Advert</b> <em>One-To-Many</em> <b>AdvertSkill</b> <em>Many-To-One</em> <b>Skill</b>
+
+Pour cela, je crée d'abord cette entité <b>Skill</b>, avec au moins un attribut <b>name</b>. Voici la mienne :
+
+Réf <b>Skill.php</b>
+
+<h3>2.) Définition de la relation dans les entités</h3>
+<h4>a./ Présentation</h4>
+
+Tout d'abord, on va créer notre entité de relation comme ceci :
+
+Réf <b>AdvertSkill.php</b>
+
+Comme les côtés <em>Many</em> des deux relations <em>Many-To-One</em> sont dans <b>AdvertSkill</b>, cette entité est l'entité 
+propriétaire des deux relations.
+
+Note : avec une relation unidirectionnelle, on ne pourra pas faire <b>$advert->getAdvertSkills()</b> pour récupérer les 
+<b>AdvertSkill</b> et donc les compétences. Ni l'inverse depuis <b>$skill</b>.
+
+En effet, et c'est pourquoi la prochaine section de ce chapitre traîte des relations bidirectionnelles !
+En attendant, pour notre relation <em>One-To-Many-To-One</em>, continuons simplement sur une relation unidirectionnelle.
+
+Sachons quand même que je peux tout de même récupérer les <b>AdvertSkill</b> d'une annonce sans forcément passer par une relation
+bidirectionnelle. Il suffit d'utiliser la méthode <b>findBy</b> du repository, comme on l'a déjà fait auparavant: 
+
+<b>
+// $advert est une instance de Advert
+// $advert->getAdvertSkills() n'est pas possible
+$listAdvertSkills = $em->getRepository('OCPlatformBundle:AdvertSkill')->findBy(array('advert' => $advert));
+
+</b>
+
+L'intérêt de la bidirectionnelle ici est lorsque je veux afficher une liste des annonces avec leurs compétences. Dans la boucle
+sur les annonces, je ne vais pas faire appel à une méthode du repostory qui va générer une requête par itération dans la boucle,
+ça ferait vraiment bcp de requêtes ! 
+Une relation bidirectionnelle permet de règler ce problème d'optimisation, je le verrai plus loin dans ce chapitre et dans le 
+prochain.
+
+Rappel : <b>doctrine:schema:update</b> !
+
+<h4>b./ Geters et setters</h4>
+
+Comme d'hab les getters et setters doivent se définir dans l'entité propriétaire. Ici, je suis en présence de deux relations
+<em>Many-To-One</em> dont la propriétaire est l'entité <b>AdvertSkill</b>. J'ai donc deux getters/setters classques à écrire.
+Je peux les générer avec la commande.
+
+<h4>c./ Remplissons la base de données</h4>
+
+Comme précédemmet, je vais d'abord ajouter des compétences en base de données grâce aux fixtures. Pour faire une nouvelle fixture,
+il suffit de créer dans le répertoire <b>DataFixtures/ORM</b> :
+
+Réf <b>LoadSkill.php</b>
+
+Et maintenant, on peut exécuter la commande :
+
+<b>
+php bin/console doctrine:fixtures:load
+</b>
+
+Je peux voir qu'après avoir tout vidé Doctrine a inséré les fixtures <b>LoadCategory</b> puis mes <b>LoadSkill</b>. Tout est prêt !
+
+<h4>d./ Exemple d'utilisation</h4>
+
+La manipulation des entités dans une telle relation est un peu plus compliquée, surtout sans la bidirectionnalité. Mais on peut
+tout de même s'en sortr. Tout d'abord, voici un exemple pour créer une nouvelle annonce contenant plusieurs compétences; mettons
+ce code dans la méthode <b>addAction()</b>:
+
+Réf <b>AdvertController3.php</b> ==> addAction()
+
+L'idée est donc la suivante: lorsque je veux lier une annonce à une compétence, il faut d'abord créer cette entité de liaison qu'est
+<b>AdvertSkill</b>. Je la lie à l'annonce, à la compétence, et je définis tous mes attributs de relations(ici je n'ai que 
+<b>level</b>). Ensuite, il faut persister le tout, et le tour est joué !
+
+Et voici un autre exemle pour récupérer les compétences et leur niveau à partir d'une annonce, la version sans la relation 
+bidirectionnelle donc. Modifions la méthode <b>viewAction()</b> de cette façon :
+
+Réf <b>AdvertController3.php => viewAction()</b>
+
+Et un exemle de ce que je pourrais utiliser dans la vue pour afficher les compétences et leur niveau :
+
+<b>
+{# src/OC/PlatformBundle/Resources/view/Advert/view.html.twig #}
+
+{% if listAdvertSkills|length > 0 %}
+	&lt;div>
+		Cette annonce requiert les compétences suivantes:
+		&lt;ul>
+			{% for advertSkill in listAdvertSkills %}
+				&lt;li>{{ advertSkill.skill.name }} : niveau {{advertSkill.level }}&lt;/li>
+			{% endfor %}
+		&lt;/ul>
+	&lt;/div>
+{% endif %}
+</b>
+
+Attention, dans cet exemple, la méthode <b>findBy()</b> utilisée dans le contrôleur ne sélectionne que les <b>AdvertSkill</b>. Donc,
+lorsque dans la boucle dans la vue on fait <b>{{ advertSkill.skill }}</b>, en réalité Doctrine va effectuer une requête pour 
+récupérer la compétence <b>Skill</b> associée à cette <b>AdvertSKill</b>. C'est bien sûr une horreur, car il va faire une requête...
+par itération dans le <b>for</b>. Si j'ai 20 compétences attachées à l'annonce, cele ferait 20 requêtes: inimaginable.
+
+<figure>
+	<img src="queries_for_skills.png" alt="Requêtes nombreuses à partir de la vue">
+	<figcaption>Doctrine fait une requête pour chaque Skill à récupérer - l'id change bien à chaque requête</figcaption>
+</figure>
+
+Pour charger les <b>Skill</b> en même temps que les <b>AdvertSkill</b> dans le contrôleur, et ainsi ne plus faire de requête dans la
+boucle, il faut faire une méthode à moi dans le repository de <b>AdvertSkill</b>. On voit tout cela dans le chapitre dédié aux 
+repositories. Je ne dois donc jamais utiliser cette technique ! La seule différence dans le contrôleur sera d'utiliser une autre
+méthode que <b>findBy()</b> et la vue ne changera même pas !
+
+<h2>VI./ Les relations bidirectionnelles</h2>
+<h3>1.) Présentation</h3>
+
+L'avantage des relations unidirectionnelles est d'être très simples. Mais l'inconvénient est de ne pas pouvoir récupérer l'entité
+propriétaire depuis l'entité inverse. Pour autant, cela ne nous a pas empêché de faire ce qu'on voulait ! A chaque fois, on a réussi
+à ajouter, lister, modifier nos entités et leurs relations.
+
+Mais dans certains cas, avoir une relation bidirectionnelle est bien utile. Je vais les voir rapidement dans cette section. 
+La docu officielle l'explique également très bien, je peux me renseigner sur le chapitre sur la création des relations :
+<a href="http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/association-mapping.html" target="_blank">ici,</a>
+puis celui sur leur utilisation :
+<a href="http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/working-with-associations.html" target="_blank">ici</a>.
+
+<h3>2.) Définition de la relations dans les entités</h3>
+
+Pour étudier la définition d'une relation bidirectionnelle, je vais étudier une relation <em>Many-To-One</em>. 
+
+Je vais ici construire une relation bidirectionnelle de type <em>Many-To-One</em>, basée sur mon exemple <b>Advert-Application</b>.
+Mais la méthode est exactement la même pour les relations de type <em>One-To-One</em> ou <em>Many-To-Many</em>.
+
+<b>Attention</b>: On part ici du principe que j'ai déjà une relation unidirectionnelle fonctionnelle. Si ce n'est pas le cas, il faut
+la mettre en place avant de réaliser ce qui suit.
+
+<h4>a./ Annotation</h4>
+
+L'objectif de cette relation est de rendre possible l'accès à l'entité propriétaire depuis l'entité inverse. Avec une
+unidirectionnelle, cela n'est pas possible, car on n'ajoute pas d'attribut dans l'entité inverse, ce qui signifie que l'entité 
+inverse ne sait même pas qu'elle fait partie d'une relation.
+
+La 1re étape consiste donc à rajouter un attribut, et son annotation, à notre entité inverse <b>Advert</b> :
+
+Réf <b>Advert3.php</b>
+
+Explications:
+	-	l'inverse d'un <em>Many-To-One</em> est un... <em>One-To-Many</em>, tout simplement! Le côté <em>Many</em> étant celui du
+	 propriétaire, le côté <em>One</em>	ici est forcément celui de l'inverse.
+	-	les paramètres de cette annotation: Le <b>targetEntity</b> est évident, il s'agit toujours de l'entité à l'autre bout de la 
+	relation. Et le <b>mappedBy</b> correspond, lui, à l'attribut de l'entité propriétaire qui pointe vers l'entité inverse: c'est 
+	le private <b>$advert</b> de l'entité <b>Application</b>. Il faut le renseigner pour que l'entité inverse soit au courant des 
+	caractéristiques de la relation : celles-ci sont définies dans l'annotation de l'entité propriétaire.
+		
+Il faut également adapter l'entité propriétaire, pour lui dire que maintenant la relation est de type bidirectionnelle et non plus
+unidirectionnelle. Pour cela, il faut simplement rajouter le paramètre <b>inversedBy</b> dans l'annotation <em>Many-To-One</em>:
+
+Réf <b>Application2.php</b>
+
+Ici, j'ai seulement rajouté le paramètre <b>inversedBy</b>. Il correspond au symétrique du <b>mappedBy</b>, ie à l'attribut de 
+l'entité inverse qui pointe vers l'attribut propriétaire. C'est donc l'attribut <b>applications</b>.
+
+<b>Remarque</b>: je me suis démarqué du cours en mettant l'underscore devant tous les attributs privés !
+
+<h4>b./ Gettters / setters</h4>
+
+On part d'une relation unidirectionnelle fonctionnelle, donc les getters et setters de l'entité propriétaire sont bien définis. 
+
+Dans un 1er temps, j'ajoute assez logiquement le getter et le setter dans l'entité inverse. Comme je suis du côté <em>One</em> d'un
+<em>One-To-Many</em>, l'attribut <b>applications</b> est un <b>ArrayCollection</b>. C'est donc un <b>addApplication / removeApplication</b>
+qu'il me faut pour le setter.
+Avec la console ou manuellement...
+
+Réf <b>Advert3.php</b>
+
+Maintenant, il faut me rendre compte d'un petit détail. Voici une petite problèmatique, lisons bien ce code :
+
+<b>
+$advert = new Advert();
+$application = new Application();
+
+// On lie la candidature à l'annonce
+$advert->addApplication($application);
+</b>
+
+<b>Question</b>: que retourne $application->getAdvert() ?
+
+La réponse est: que dalle !
+J'ai alors deux choix, soit j'attache l'entité <b>$advert</b> à l'<b>$application</b> manuellement à chaque fois, ce qui très 
+fortement déconseillé, soit, ces deux méthodes étant fortement liées, on les imbrique.
+Voilà comment le faire en modifiant en modifiant les setters de l'une des deux méthodes: 
+
+Réf <b>Advert3.php</b>
+
+Attention: je dois surtout pas modifier les deux côtés de la relations, car je me retrouverai alors dans une boucle infinie !
+Remarque: ou pas ? Si par exemple, je mets une condition, du genre if(!in_array($this, $advert->getApplications()))...
+
+Bref, l'important est de se prendre un côté (propriétaire ou inverse, cela n'a pas d'importance), et <b>d'utiliser systématiquement
+le setter de ce côté-là afin de respecter la cohérence</b>.
+
+<h3>Pour conclure: </h3>
+Le chapitre sur les relations Doctrine touche ici à sa fin. Le maître mot est: m'entraîner.
+Pour obtenir plus d'infos sur les fixtures que l'on a rapidement abordées lors de ce chapitre, je peux consulter la docu du bundle:
+<a href="https://symfony.com/doc/current/bundles/DoctrineFixturesBundle/index.html" target="_blank">ici même</a>.
+
+<h3>En résumé :</h3>
+	-	Les relations Doctrine révèlent toute la puissance de l'ORM
+	-	Dans une relation entre deux entités, l'une est propriétaire de la relation et l'autre est inverse. Cette notion est
+		purement technique.
+	-	Une relation est dite unidirectionnelle si l'entité inverse n'a pas d'attribut la liant à l'entité propriétaire. On met en
+		place une relation bidirectionnelle lorsqu'on a besoin de cet attribut dans l'entité inverse (ce qui arrivera pour certains
+		formulaires)
+	-	Le code du cours tel qu'il doit être à ce stade est disponible sur la branche <a href="https://github.com/winzou/mooc-symfony/tree/iteration-10" target="_blank">
+		iteration-10 du dépôt Github</a>.
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

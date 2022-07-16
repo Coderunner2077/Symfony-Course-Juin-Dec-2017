@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Traduire son site</title>
+</head>
+<body>
+<div class="container text-justify">
+														<h1>Traduire son site</h1>
+													
+<p>Maintenant que mon site est opérationnel, il faut monter en puissance et conquérir le reste du monde ! Pour cela, il va falloir 
+apprendre quelques langues supplémentaires à mon site. Ce chapitre a donc pour objectif de mettre en place un site multilingue. Cela
+passera par: </p>
+
+<ul>
+	<li>Traduire les messages qui apparaissent tels quels dans mes pages HTML;</li>
+	<li>Placer un peu de contenu dynamique au milieu d'un texte;</li>
+	<li>Afficher mon site dans différents langages;</li>
+	<li>Traduire du contenu d'entités.</li>
+</ul>
+
+<p>Quand j'ai créé mon site, j'ai mis certains textes directement dans mes templates Twig. Seulement, quand il est question de traduire
+le site, la question se pose : "Comment faire pour que ce texte, actuellement en dur dans le template, change selon la langue de 
+l'utilisateur ?" Eh bien, on va apprendre ici comment rendre ce texte dynamique.</p>
+
+<h2>I./ Introduction à la traduction</h2>
+<h3>1.) Le principe</h3>
+
+<p>Si demain on me demande de traduire un document du français vers une langue étrangère, j'aurai besoin de trois choses :</p>
+
+<ul>
+	<li>Ce qu'il faut traduire</li>
+	<li>La langue dans laquelle traduire</li>
+	<li>Ainsi qu'un dictionnaire si besoin.</li>
+</ul>
+
+<p>Ensuite, la méthodologie est plutôt classique : on prend le texte original pour d'abord traduire les mots inconnus, puis on traduit les
+ phrases en respectant la syntaxe de la langue cible.</p>
+
+<p>En effet, quand nous commençons l'apprentissage d'une langue étrangère, nous cherchons le mot exact dans notre dictionnaire, sans 
+imaginer qu'il s'agisse d'un adjectif accordé ou d'un verbe conjugué. On ne risque donc pas de trouver cette orthographe exacte. 
+Symfony n'ayant pas d'intelligence artificielle, il va reproduire ce comportement systématiquement.</p>
+
+<h4>a./ ce qu'il en est avec Symfony</h4>
+
+<p>Le service de traduction ne va donc pas s'embarrasser de considérations de syntaxe ou de grammaire ; c'est dû au fait qu'il ne s'agit
+pas d'un traducteur sémantique. Il n'analyse pas le contenu de la phrase — ni même ne regarde si ce qu'on lui fournit en est une. Il se
+chargera de traduire une chaîne de caractères d'une langue à l'autre, en la comparant avec un ensemble de possibilités. Mais attention,
+la casse, tout comme les accents, sont importants. Symfony va vraiment chercher une correspondance exacte de la chaîne à traduire. 
+C'est pourquoi on ne parle pas de dictionnaire, mais de catalogue.</p>
+
+<p>Si d'un côté c'est plutôt rassurant car il ne peut pas faire d'erreur, l'autre côté implique évidemment que cette responsabilité 
+<em>m</em>'incombe <em>moi</em>, car c'est moi qui vais écrire le catalogue pour Symfony ! Donc autant m'assurer que je connais bien la
+langue dans laquelle je vais traduire.</p>
+
+<p>La langue source, c'est celle que j'ai déjà utilisée dans mes templates jusqu'à maintenant, donc le français. Comme on l'a vu juste 
+avant, Symfony n'allant chercher que la correspondance exacte, il n'y a pas réellement besoin de la spécifier.</p>
+
+<p>Quant à la langue cible, elle est en général demandée par l'utilisateur, parfois sciemment (quand il clique sur un lien qui traduit la 
+page sur laquelle il se trouve), parfois implicitement (quand il suit un lien depuis un moteur de recherche, lien qui est dans sa langue),
+et parfois à son insu (les navigateurs envoient, dans l'en-tête des requêtes, la ou les locale(s) préférée(s) de l'utilisateur ; la 
+locale utilisée sur un site est souvent stockée dans la session, liée à un cookie, qui voyage donc aussi à chaque requête).</p>
+
+<p class="ai">
+On parle de <b>locale</b> pour désigner non seulement la langue de l'utilisateur, mais aussi d'autres paramètres régionaux, comme le format 
+d'affichage de montants d'argent (et donc la devise), de dates, etc. La locale contient un code de langue ainsi qu'une éventuelle 
+indication du pays. Exemples : <b>fr</b> pour le français, <b>fr_CH</b> pour le français de Suisse, <b>zh_Hant_TW</b> pour le chinois 
+traditionnel de Taïwan, etc.</p>
+
+<p>Les locales sont composées de codes de langue, au format <a href="https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes">ISO639-1</a>, 
+puis éventuellement d'un sous-tiret (<b>_</b>) et du code du pays au <a href="https://en.wikipedia.org/wiki/ISO_3166-1#Current_codes">
+format ISO3166-2 Alpha-2</a>.
+
+<p class="well">Et s'il n'y a pas de traduction dans la locale demandée ?</p>
+
+<p>Symfony possède un mécanisme qui permet d'afficher quelque chose par défaut. Imaginons que j'arrive sur un site principalement 
+anglophone géré par des Québecois, et ceux-ci, par égard aux Français, sont en train de préparer une version spéciale en « français de
+France ». Cependant, tout le site n'est pas encore traduit.</p>
+
+<p>Moi, en tant que visiteur, je demande la traduction pour ma locale <b>fr_FR</b> du texte "site.devise":</p>
+
+<ul>
+	<li>Ce qui est déjà traduit dans la locale <b>fr_FR</b> me sera retourné;</li>
+	<li>Ce qui n'est pas encore traduit en <b>fr_FR</b>, mais existe en "français général" (locale <b>fr</b>): c'est cette version qui
+		me sera envoyée;</li>
+	<li>Ce qui n'est pas du tout traduit en français, mais l'est en anglais, est affiché en anglais;</li>
+	<li>Ce qui ne possède aucune traduction est affiché tel quel, ici "site.devise". Dans ce cas, quand c'est le texte original qui est
+		affiché, c'est qu'on a oublié la traduction de ce terme.</li>
+</ul>
+
+<h3>2.) Prérequis</h3>
+
+<p>Avant de partir dans la traduction de son site, il faut vérifier que Symfony travaillera correctement avec les langues, et notammet
+celle qui est utilisée par défaut. Comme nous sommes sur un site francophone, on va partir du principe que la langue par défaut est
+le français, et la locale <b>fr</b>.</p>
+
+<h4>a./ Configuration</h4>
+
+<p>Pour savoir quelle est la langue par défaut sur le site (au cas où il ne serait pas possible d'afficher celle que le client souhaite),
+Symfony utilise un paramètre appelé <b>locale</b>, comme on l'a vu plus haut. Il faut donc la défini dans le fichier <b>config.yml</b>
+de cette façon :</p>
+
+<pre># app/config/config.yml
+
+parameters:
+    locale: fr
+</pre>
+
+<p class="aw">
+Si ce paramètre n'est pas renseigné, le framework considérera qu'il travaille en anglais.</p>
+
+<p>On va ensuite utiliser ce paramètre <b>locale</b> dans la configuration :</p>
+
+<pre># app/config/config.yml
+
+framework:
+    # On définit la langue par défaut pour le service de traduction
+    translator: { fallbacks: ['%locale%'] }
+    
+    # Vérifier cette ligne aussi, pour la langue par défaut de l'utilisateur
+    # C'est celle qui sera utilisée si l'internaute ne demande rien
+    default_locale: %locale%
+</pre>
+
+<p>Mon application sait maintenant que je travaille sur un site, qui, à la base, est en français.</p>
+
+<h4>b./ Mise en place d'une page de test</h4>
+
+<p>Il nous faut une page sur laquelle faire nos tests.</p>
+
+<p>En voici la route, à mettre dans <b>routing_dev.yml</b>, car d'une part c'est une route de test, et d'autre part le fichier de routes
+de notre bundle est préfixé par <b>/platform</b> qu'on ne veut pas forcément ici. Voici la route en question :</p>
+
+<b>Réf routing_dev.yml</b>
+
+<p>Et l'action du contrôleur :</p>
+
+<b>Réf AdvertController.php</b>
+
+<p>Et la vue :</p>
+
+<b>Réf translation.html.twig</b>
+
+<h2>II./ Bonjour le monde</h2>
+
+<p>Notre but est de traduire ce "Hello" en "Bonjour".</p>
+
+<h3>1.) Dire à Symfony "Traduis-moi cela"</h3>
+
+<p>La traduction est possible dans Symfony à deux endroits: dans les contrôleurs (ou services) et dans la vue. Cette dernière option est
+la plus conseillée, car c'est dans les vues que se situe l'affichage et donc bien souvent le texte à traduire.</p>
+
+<h4>a./ Le filtre Twig <b>{{ 'string'|trans }}</b></h4>
+
+<p>Un filtre est bien adapté à la draduction du texte, car modifier le texte pour qu'il soit dans une autre langue est une transformation
+comme une autre !</p>
+
+<p>Dans notre cas, c'est le filtre <b>trans</b> que l'on va utiliser. La syntaxe est la suivante: </p>
+
+<pre>
+<b>{{ 'ma chaine|trans }}</b> ou encore <b>{{ ma_variable|trans }}</b></pre>
+
+<p>Ce filtre est prévu pour s'appliquer sur des variables ou des courtes chaînes.</p>
+
+<h4>b./ La balise de bloc Twig <b>{% trans %}</b></h4>
+
+<p>Une autre possibilité de traduction depuis la vue consiste à encadrer les textes dans des blocs <b>{% trans %} ... {% endtrans %}</b>.
+Ce bloc permet de traduire du texte brut, mais attention il est impossible d'y mettre autre chose que du texte. Balises HTML, code 
+Twig, etc. sont interdits ici. Une des utilisations les plus parlantes est pour les conditions générales d'utilisation d'un site, où
+il y a de gros paragraphes avec du texte brut, voici un exemple :</p>
+
+<pre>
+&lt;p>
+  {% trans %}Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur
+  quam nisi, sollicitudin ut rhoncus semper, viverra in augue. Suspendisse
+  potenti. Fusce sit amet eros tortor. Class aptent taciti sociosqu ad litora
+  torquent per conubia nostra, per inceptos himenaeos. Ut arcu justo, tempus sit
+  amet condimentum vel, rhoncus et ipsum. Mauris nec dui nec purus euismod
+  imperdiet. Cum sociis natoque penatibus et magnis dis parturient montes,
+  nascetur ridiculus mus. Mauris ultricies euismod dolor, at hendrerit nulla
+  placerat et. Aenean tincidunt enim quam. Aliquam cursus lobortis odio, et
+  commodo diam pulvinar ut. Nunc a odio lorem, in euismod eros. Donec viverra
+  rutrum ipsum quis consectetur. Etiam cursus aliquam sem eget gravida. Sed id
+  metus nulla. Cras sit amet magna quam, sed consectetur odio. Vestibulum feugiat
+  justo at orci luctus cursus.{% endtrans %}
+&lt;/p>
+&lt;p>
+  {% trans %}Vestibulum sollicitudin euismod tellus sed rhoncus. Pellentesque
+  habitant morbi tristique senectus et netus et malesuada fames ac turpis
+  egestas. Duis mattis feugiat varius. Aenean sed rutrum purus. Nam eget libero
+  lorem, ut varius purus. Etiam nec nulla vitae lacus varius fermentum. Mauris
+  hendrerit, enim nec posuere tempus, diam nisi porttitor lacus, at placerat
+  elit nulla in urna. In id nisi sapien.{% endtrans %}
+&lt;/p>
+</pre>
+
+<h4>c./ Le service <b>translator</b></h4>
+
+<p>Parfois, je dois malgré tout réalser quelques traductions depuis un contrôleur ou un service, dans le cas d'inscriptions dans
+un fichier log, par exemple. Dans ce cas, il faut faire appel au service <b>translator</b>, qui est le service de traduction que
+la balise et le filtre Twig utilisent en réalité.</p>
+
+<p>Son utilisation directe est très aisée, en voici une démonstration :</p>
+
+<pre>// Dans un contrôleur
+
+// On récupère le service translator
+$translator = $this->get('translator');
+
+// Pour traduire dans la locale de l'utilisateur :
+$textTraduit = $translator->trans('Mon message à incrire dans les logs');
+</pre>
+
+<h3>2.) Notre vue</h3>
+
+<p>Dans notre vue de test, rajoutant donc le filtre <b>trans</b> de Twig pour qu'il traduise "Hello".</p>
+
+<b>Réf translation2.html.twig</b>
+
+<p>Désormais, Symfony sait quoi traduire et dans quelle langue traduire, mais ne sait pas comment... Autrement dit, il lui manque le
+dictionnaire !</p> 
+
+<p>Les fichiers qui vont dire à Symfony comment traduire des mots, s'appellent des catalogues, pour être exact.</p>
+
+<h2>III./ Le catalogues</h2>
+
+<p>Le catalogue est l'endroit où l'on va associer la chaîne à traduire avec sa version en langue étrangère. Si j'ai créé mon bundle
+grâce à la commande <b>generate:bundle</b>, alors Symfony m'a créé automatiquement un catalogue exemple, c'est le fichier enregistré
+dans le dossier <b>Resources/translations</b> du bundle, et qui contiendra par la suite les paires de type :</p>
+
+<b>'Ma chaîne en français' => 'My string in English'</b>
+
+<h3>1.) Les formats de catalogue</h3>
+
+<p class="aw">
+Les exemples sont pour traduire de l'anglais au français, <em>et non l'inverse</em>.</p>
+
+<h4>a./ Le format XLIFF</h4>
+
+<p>Symfony recommande le XLIFF, une application du XML. C'est pourquoi, dans le catalogue exemple autogénéré, je trouve le fichier
+<b>Resources/translations/messages.fr.xlf</b> qui contient l'exemple suivant (qu'on commente) :</p>
+
+<b>Réf messages.fr.xlf</b>
+
+<p>L'avantage du XLIFF est qu'il s'agit d'un format officiel, dont je peux valider la structure en plus de la syntaxe. De plus, du fait
+du support natif de XML par PHP, il est facile de le modifier via PHP, et donc de créer une interface dans mon site pour modifier les
+traductions. En revanche, le désavantage du XLIFF est celui du XML de façon générale: c'est très verbeux, c'est-à-dire que pour traduire
+une seule ligne, il m'en faut vingt.</p>
+
+<h4>b./ Le format YAML</h4>
+
+<p>Voici l'équivalent YAML du fichier <b>messages.fr.xlf</b> précédent :</p>
+
+<pre># src/OC/PlatformBundle/Resources/translations/messages.fr.yml
+
+# La syntaxe est : "la chaîne source: la chaîne cible"
+Symfony is great: J'aime Symfony
+</pre>
+
+<p class="well">Vu la simplicité du YAML, pourquoi XLIFF existe-t-il ? <br><br>
+
+Disons que, il existe des outils pour faciliter les traductions de gros catalogues pour le format XLIFF.</p>
+
+<p>Pour nos exemples dans ce cours, utilisons le format YAML qui est plus lisible et plus concis. Si c'est mon choix également, il faut
+que je pense à supprimer le fichier <b>messages.fr.xlf</b> afin qu'il n'interfère pas.</p>
+
+<div class="aw">
+<p>Attention également lorsque j'ai des deux-points (":") dans ma chaîne source, vu la syntaxe utilisée dans le fichier YAML. Il faut dans
+ce cas encadrer la chaîne source par des guillemets, comme ceci :</p>
+
+<pre>"Phone number:":Numéro de téléphone:</pre>
+
+<p class="ai">
+Note: je peux ne pa encadrer la chaîne  cible avec les guillemets, bien que celle-ci contienne également les deux-points. Cela est dû
+à la syntaxe du YAML lui-même: la fin de la chaîne cible est le retour à la ligne, donc impossible à confondre avec les deux-points.</p>
+</div>
+
+<h4>c./ Le format PHP</h4>
+
+<p>Moins utilisé, ce format est néanmoins possible. La syntaxe est celle d'un simple tableau PHP, comme ceci :</p>
+
+<pre>&lt;?php
+// src/OC/PlatformBundle/Resources/translations/messages.fr.php
+
+return array(
+	'Symfony is great' => "J'aime Symfony"
+);
+</pre>
+
+<h4>d./ La mise en cache du catalogue</h4>
+
+<p>Quelque soit le format que je choisisse pour mes catalogues, ceux-ci seront  mis en cache pour une utilisation plus rapide
+dans l'environnement de production. En effet, il ne faut pas l'oublier, si Symfony a la gentillesse de regénérer le cache du catalogue
+à chaque exécution dans l'environnement de développement, il ne le fait pas en production. Cela signifie que je <em>dois</em> vider
+manuellement le cache pour que mes changements s'appliquent en production. Faudra y penser.</p>
+
+<p>Je peux choisir le format qui me convient le mieux, mais dans la suite du cours, on va opter pour YAML qui possède quelques autres
+avantages intéressants dont on parlera plus loin.</p>
+
+<h3>2.) Notre traduction</h3>
+
+<p>Il est temps d'adapter notre catalogue à nos besoins. Je crée donc le fichier <b>messages.fr.yml</b> nécessaire pour traduire notre
+"Hello" en français. Je devrai arriver au résultat suivant :</p>
+
+<b>Réf messages.fr.yml</b>
+
+<p>Pour tester, il faut d'abord vider le cache. Et ça marche (?)! Si je change le paramètre dans <b>app/config/config.yml</b> pour que
+ma locale par défaut soit à nouveau l'anglais, j'ai à nouveau "Hello winzou!".
+
+<p class="ai">
+Chaque fois que je crée un nouveau fichier de traduction, il me faut rafraîchir mon cache, que je sois dans l'environnement de production
+ou de développement. En effet, si le mode dev permet de prendre en compte les modifications du catalogue sans vider le cache, ce n'est
+pas le cas pour la création du fichier de catalogue !</p>
+
+<p class="aw">
+Si j'ai une erreur du type "<b>Input is not proper UTF-8, indicate encoding !</b>", je n'ai pas dû encoder mes fichier en UTF-8 sans BOM.
+</p>
+
+<h4>a./ Ajouter un message à traduire</h4>
+
+<p>On se doute bien que l'on n'aura pas qu'une seule chaîne à traduire sur tout un site. Il va falloir que tout ce qu'on souhaite voir
+s'afficher dans la langue de l'utilisateur soit renseigné dans le catalogue. Pour chaque nouvelle chaîne, on ajoute une unité de 
+traduction: </p>
+
+<b>Réf messages.fr.yml</b>
+
+<p>Ainsi, chaque fois que j'ai une nouvelle traduction à ajouter, j'ajoute une ligne.</p>
+
+<h4>b./ Extraire les chaînes sources d'un site existant</h4>
+
+<p class="well">
+Lorsqu'on a un site tout prêt en français, doit-on trouver toutes les chaînes sources et les copier dans le catalogue à la main ?</p>
+
+<p>Justement, non. Je vais devoir ajouter les balises et/ou filtres Twig de traduction dans mes vues, ça, c'est inévitable. Mais une fois
+que ce sera fait, les concepteurs de Symfony ont pensé aux personnes dans mon cas, et développé un outil permettant d'extraire toutes
+les chaînes entre balises <b>{% trans %}</b> et celles avec le filtre <b>|trans</b>. </p>
+
+<p>Cet outil se présente sous forme d'une commande, il s'agit de <b>translation:update</b>. Sa version complète est la suivante :</p>
+
+<b>translation:update [--prefix[="..."]] [--output-format[="..."]] [--dump-messages] [--force] locale bundle</b>
+
+<p>Cette commande va lire toutes les vues du bundle spécifié, et compilera toutes les chaînes sources dans un catalogue. Je n'aurai plus
+qu'à définir les chaînes cibles.</p>
+
+<p class="aw">
+Si cela paraît être la commande miracle, elle ne fonctionne cependant pas pour extraire les chaînes sources des contrôleurs, donc 
+utilisés avec <b>$this->get('translator')->trans("...")</b>, ni sur le contenu des variables traduites avec <b>{{ maVariable|trans }}</b> 
+(car il ne connaît pas la valeur de la variable <b>maVariable</b> !). Et, bien entendu, je ne dois oublier aucune balise/filtre Twig
+de traduction.</p>
+
+<p>La commande <b>translatin:update</b> est du même genre que <b>doctrine:schema:update</b>, dans le sens où il me faut choisir de entrer
+(en plus des deux paramètres obligatoires) soit <b>--dumpt-messages</b>, soit <b>--force</b> pour qu'elle fasse réellement quelque chose.
+Cela permet de vérifier le résultat avant qu'elle n'écrive effectivement dans le catalogue.</p>
+
+<ul>
+	<li>La première option <b>--dump-messages</b> affiche tous les messages dans la console, plus ou moins tels qu'ils seront dans le
+		catalogue en YAML (c'est pour cela que c'est le format de sortie par défaut). Elle tient compte des messages déjà traduits, donc
+		pas de souci que mon précédent travail soit écrasé. Cela me permet aussi de passer d'un format à l'autre si j'ai commencé le
+		travail en réutilisant le fichier <b>messages.fr.xlf</b> du bundle par exemple.</li>
+	<li>
+		La seconde option <b>--force</b> effectue la mise à jour des catalogues, tout en conservant une sauvegarde des versions précédentes.
+	</li>
+</ul>
+
+<p>Par défaut, les extractions sont de type <b>chaîne source: __chaîne source</b>. En effet, Symfony ne peut deviner comment traduire 
+la chaîne source, il la remet donc comme la chaîne cible, mais en la préfixant avec <b>__</b>. Avec l'option <b>--prefix="..."</b>, je
+peux changer la partie <b>__</b> par ce que je veux.</p>
+
+<p>Il est temps de passer à la pratique, exécutons cette commande pour extraire les messages de notre bundle, et je regarde ce qu'il en
+sort :</p>
+
+<pre><span style="text-decoration: underline;">DANS LA CONSOLE</span>
+
+C:\MAMP\htdocs\Symfony> php bin/console translation:update --force fr OCPlatformBundle
+Translation Messages Extractor and Dumper
+=========================================
+
+ // Generating "fr" translation files for "OCPlatformBundle"
+
+ // Parsing templates...
+ // Loading translation files...
+ // Writing files...
+
+ [OK] Translation files were successfully updated.</pre>
+ 
+<p>Maintenant, à l'aide de mon éditeur préféré, je peux chercher les occurences de <b>__</b> (ou du préfix que j'ai défini) dans mes 
+catalogues pour les mettre en surbrillance. Je ciblerai ainsi très rapidement les nouveautés, ie ce que je veux traduire !</p>
+
+<p>Enfin, je noterai que les anciennes chaînes cibles ne sont pas préfixées, car on les a déjà traduites.</p>
+
+<p class="ai">
+Symfony s'occupe automatiquement des éventuels doublons, je ne devrai normalement plus en avoir après avoir utilisé la commande
+<b>translation:update</b> avec l'option <b>--force</b>.</p>
+
+<h4>c./ Traduire dans une nouvelle langue</h4>
+
+<p>Pour conquérir le monde, ce qui reste notre but à tous, I've got to speak English ! Mais il ne faut pas s'arrêter là. On souhaite 
+maintenant traduire les messages également en allemand. Il faut alors tout simplement créer le catalogue adéquat, mais on peut
+se simplifier la vie: je duplique le fichier <b>messages.fr.yml</b> et je nomme la copie <b>messages.de.yml</b>. Ensuite, je n'ai plus
+qu'à y modifier les chaînes cibles :</p>
+
+<pre># src/OC/PlatformBundle/Resources/translation/messages.de.yml
+
+Hello: Guten tag
+</pre>
+
+<p>Je peux dès à présent tester le bon fonctionnement de l'allemand en changeant le paramètre dans <b>app/config/config.yml</b>, après
+avoir vidé notre cache bien entendu (nous avons ajouté un fichier dans le catalogue).</p>
+
+<p class="ai">
+Il est vivement conseillé de bien préparer - si ce n'est de terminer - les catalogues pour une locale, puis de les dupliquer pour les 
+autres, et non de travailler sur toutes les locales à la fois. J'éviterai ainsi les casses-têtes de traductions incomplètes (manque de
+chaînes sources surtout). La traduction est un processus qui doit se faire tout à la fin de la réalisation d'un site.</p>
+
+<h2>IV./ Récupérer la locale de l'utilisateur</h2>
+<h3>1.) Déterminer la locale</h3>
+
+<p>Jusqu'à présent, pour changer la locale de notre site, on a modifié à la main le fichier de configuration. Bien entendu, ce n'est pas
+une solution viable.</p>
+
+<p>Pour adapter la locale à l'utilisateur qui navigue sur mon site, Symfony observe quelques règles bien précises. Plus précisément,
+il existe trois moyen de connaître la locale de l'utilisateur :</p>
+
+<ol>
+	<li>L'utilisateur clique sur un lien qui traduit la page sur laquelle il se trouve.</li>
+	<li>L'utilisateur envoie ses préférences dans les en-têtes des requêtes.</li>
+	<li>Les paramètres par défaut.</li>
+</ol>
+
+<p>L'ordre correspond à la priorité observée par Symfony.</p>
+
+<p>La plupart des sites multilingues affichent la locale dans l'URL (exemple : <b>http://www.site.com/fr</b>). La locale ne dépend donc
+pas de l'utilisateur, mais de l'adresse à laquelle il se trouve.</p>
+
+<h3>2.) Routing et locale</h3>
+<h4>a./ Le paramètre d'URL</h4>
+
+<p>On l'a déjà vu dans le chapitre sur le routeur: certains paramètres de route bénéficient d'un traitement spécial de la part de 
+Symfony. Et il y en a même un prévu pour récupérer la locale ! Il s'agit du paramètre <b>_locale</b> que j'ai déjà croisé dans le 
+chapitre sur le routeur.</p>
+
+<p class="well">
+Mais les paramètres, ne doit-on pas les traiter dans les contrôleurs ? Et donc, ne doit-on pas modiifer toutes nos actions, en plus
+des routes ?</p>
+
+<p>Justement, non. C'est en cela que le paramètre <b>_locale</b> (entre autres) est spécial. En effet, Symfony sait quoi faire avec ces
+paramètres, je n'ai donc pas à les récupérer dans mes actions - sauf si le traitement diffère sensiblement en fonction de ce paramètre -
+ni le mettre moi-même en session, ni quoi que ce soit.</p>
+
+<p>Voici ce que cela donne sur notre route de test :</p>
+
+<b>Réf routing_dev.yml</b>
+
+<p class="aw">
+Les paramètres de routes sont différents des variables que je peux passer en GET. Ainsi, l'URL <b>traduction/winzou?_locale=ur</b> ne 
+traduira pas ma page (en ourdou dans ce cas présent), car ici <b>_locale</b> n'est pas un paramètre de route.</p>
+
+<p>Je peux déjà tester en essayant de mettre "fr" ou "de" dans l'URL. Le contenu de la page est bien traduit.</p>
+
+<p>Attention, par contre, si je vais sur <b>/en/traduction/winzou</b>, j'ai toujours "Bonjour". En effet,  pour l'instant on n'a pas de 
+catalogue pour l'anglais. Et Symfony ne sait pas que "Hello" (texte original) c'est de l'anglais. Comme il n'y a pas de catalogue 
+correspondant à la langue demandée, Symfony affiche la page dans la langue <em>fallback</em> (langue de repli en français), définie
+dans le fichier de configuration <b>config.yml</b>, qui est dans notre cas le français.</p>
+
+<p class="well">
+Mais est-ce que cela veut dire qu'on va éditer <em>tous</em> nos fichiers de routing et prendre chaque route <em>une à une</em> ?</p>
+
+<p>Non ! Il y a au moins un moyen plus rapide de faire cela, qu'on a aussi vu dans le chapitrer sur les routes... il s'agit de 
+l'utilisation d'un préfixe ! Voyons comment rajouter le paramètre <b>_locale</b> sur tout notre plateforme :</p>
+
+<pre># app/config/routing.yml
+
+oc_platform:
+    resource: "@OCPlaformBundle/Resources/config/routing.yml
+    prefix:   /{_locale}/platform	# ici, on ajoute {_locale} au préfixe
+</pre>
+
+<p>Je peux désormais demander mes pages en différentes langues selon l'URL. Bien entendu, pour que ce soit opérationnel, je dois 
+généraliser l'utilisation du filtre ou de la balise Twig <b>trans</b>, et traduire les textes dans les catalogues correspondants. Pas de
+<b>trans</b>, pas de traduction !</p>
+
+<p class="aw">
+Il y a actuellement un problème avec les routes de FOSUserBundle quand on utilise cette solution de préfixer depuis 
+<b>app/config/routing.yml</b>. La route <b>fos_user_security</b>, quand elle est préfixée, n'est plus liée à une action. Ainsi, pour les
+routes de FOSUserBundle, il vaut mieux dupliquer le fichier de routing du bundle dans mon OCUserBundle et y préfixer les routes qui en
+ont besoin. Je n'ai plus qu'à importer le routing de mon UserBundle à la place de celui de FOSUserBundle, et je n'ai pas besoin de mettre
+la partie du préfixe <b>/_locale/</b> à l'importation.</p>
+
+<p>Il manque cependant un garde-fou à notre solution: avec une locale aussi apparente, un petit malin peut très bien changer à la main la
+locale dans une URL, et arriver sur un site dans ue langue je ne pensais pas être accessible. Il faut donc veiller à limiter les locales
+disponibles en ajoutant les <em>requirements</em> pour ce paramètre. De fait, le routing devrait ressembler à cela :</p>
+
+<b>Réf routing.yml</b>
+
+<p class="ai">
+Soyons clairs: si j'ai des routes qui contiennet la locale, je n'ai rien d'autre à faire. Ni manipuler la session, ni l'objet 
+<b>request</b>, ni quoi que ce soit d'autre. Symfony s'en charge.</p>
+
+<h3>3.) Les paramètres par défaut</h3>
+
+<p>Ces paramtètres sont prévus pour éviter que l'internaute ne trouve ni aucun contenu, ni un contenu incompréhensible. Mais ils sont
+aussi définis pour que Symfony puisse fonctionner. On a vu l'ordre de priorité dans les possibilités de passer la locale au framework. En
+fait, Symfony ne se base que sur la session, mais la remplit selon cet ordre de priorité. Seulement, il y a toujours un moment où
+l'internaute arrive sur la notre site pour la toute première fois (ou une nouvelle fois après avoir entièrement nettoyé son cache
+navigateur, ce qui, pour le serveur, revient au même). Du coup, il faut bien des paramètres par défaut.</p>
+
+<p>Au début de ce chapitre, nous avons vérifié quelques paramètres dans <b>app/config/config.yml</b>. Reprenons le code de ce fichier un
+peu plus en détail, afin de mieux comprendre à quoi il sert :</p>
+
+<b>Réf config.ym</b> (commentaires...)
+
+<h2>V./ Organiser ses catalogues</h2>
+
+<p>Quand il y a bcp de traductions, les fichiers deviennent vite difficiles à manipuler. Il faut parcourir bcp de lignes pour retrouver
+là où l'on souhaite faire une modification, et c'est contraire au mode de vie des informaticiens qui veut qu'on puisse se retrouver
+rapidement dans du code ou dans des fichiers. On va donc aborder ici des solutions pour organiser ses catalogues.</p>
+
+<h3>1.) Utiliser des mots-clés plutôt que texte comme chaînes sources</h3>
+
+<p>Voilà une solution intéressante, à moi de choisir de l'adopter pour toutes mes traductions ou juste les chaînes très longues. L'idée
+ est d'utiliser, au lieu du texte dans la langue source, des mots-clés.</p>
+ 
+ <h4>a./ Exemple d'utilisation</h4>
+ 
+<p>Voyons tout de suite un exemple d'une page statique avec pas mal de texte impliquant bcp de texte dans le catalogue, par exemple :</p>
+
+<pre># Dans un catalogue
+
+Le site où on apprend tout... à partir de zéro !: The website where you learn it all... from scratch!</pre>
+
+<p>L'entrée du catalogue est composée de deux phrases longues, ce n'est pas terrible. Pareil pour la vue :</p>
+
+<pre>{# Dans une vue #}
+
+{% trans %}Le site où on apprend tout... à partir de zéro !{% endtrans %}
+{# ou #}
+{{ 'Le site où on apprend tout... à partir de zéro !'|trans }}
+</pre>
+
+<p>Passons maintenant à l'utilisation d'un mot-clé. Voici d'abord le catalogue :</p>
+
+<pre># Dans un catalogue
+
+site.devise: The website where you learn it all... from scratch!</pre>
+
+<h4>b./ L'intérêt des mots-clés</h4>
+
+<p>On voit tout de suite la différence !</p>
+
+<p class="aw">
+Bien entendu, si le catalogue est léger, il n'y a rien de magique: je dois dans ce cas utiliser deux catalogues. L'un pour l'anglais,
+et l'autre pour le français !</p>
+
+<p>Mais l'avantage se situe dans les vues, où un mot-clé est plus synthétique qu'une longue phrase, utile pour ne pas se perdre au milieux
+du code HTML de ma vue. Illustration :</p>
+
+<pre>{# Dans une vue #}
+
+{% trans %}site.devise{% endtrans %}
+{# OU #}
+{{ 'site.devise'|trans }}</pre>
+
+<p>Ainsi, quelques mots-clés bien choisis pour résumer une phrase, séparés par des points, et j'ai déjà gagné en clarté dans mes vues et
+catalogues ! Cela est utilisable avec n'importe quel format de catalogue. Je ne dois pas hésiter à m'en servir copieusement.</p>
+
+<p>Un des avantages également est de voir très rapidement une chaîne non traduite: au lieu du joli texte en français, j'aurai un 
+"xxx.yyy" au milieu de ma page. Cela saute mieux aux yeux, et évite les oublis !</p>
+
+<p>Enfin, un mot sur la création de deux catalogues au lieu d'un seul. C'est en réalité plutôt une bonne chose, car cela permet non
+seulement de séparer le texte de tout le code HTML, mais cela permet de mutualiser ! En effet, si je me sers d'un mot ou d'une phrase de
+façon récurrente sur mon site (la devise par exemple), celui-ci ne sera stocké qu'à un seul endroit, dans mon catalogue. Je peux alors
+le modifier à un unique endroit, et les répercussions s'appliqueront sur tout mon site.</p>
+
+<p>Mais l'intérêt des mots-clés ne s'arrête pas là...</p>
+
+<h4>c./ Nicher les traductions</h4>
+
+<p>C'est une possibilité qui découle de l'utilisation des mots-clés.</p>
+
+<p class="alert alert-danger">
+Cette possibilité n'est disponible que dans les catalogues au format YAML.</p>
+
+<p>Si j'opte pour l'utilisation des mots-clés, ce qui est m'est reccomandé par l'auteur de ce cours, j'arriverai très certainement à un
+résultat de ce genre :</p>
+
+<pre># Dans un catalogue
+
+advert.edit.title: Édition d'une annonce
+advert.edit.submit_button: Valider
+advert.show.edit_button: Éditer l'annonce
+advert.show.create_button: Créer une nouvelle annonce</pre>
+
+<p>Ce qui était très clair avec une seule ligne, le devient déjà moins lorsqu'il y en a quatre, et n'en parlons pas s'il y en a plus !</p>
+
+<p>En bon développeurs avisés, les développeurs du YAML ont pensé à tout, en permettant de factoriser les redondances. Voici donc comment
+je peux optimiser mon catalogue :</p>
+
+<pre># Dans un catalogue
+
+advert:
+    edit:
+        title:         &Eacute;dition d'une annonce
+        submit_button: Valider
+    show: 
+        edit_button:   &Eacute;diter l'annonce
+        create_button: Créer une nouvelle annonce</pre>
+        
+<p>Quand Symfony va lire cette portion de YAML, il va remplacer chaque séquence "deux-points - retour à la ligne - indentation" par un
+simple point, devenant ainsi l'équivalent de ce que j'avais précédemment. Très pratique !</p>
+
+<p>Côté utilisation, dans les vues ou avec le service <b>translator</b>, rien ne change. J'utilise toujours quelque chose du genre
+<b>{{ 'advert.edit.title'|trans }}</b>.</p>
+
+<p class="ai">
+Il faut savoir que c'est une fonctionnalité du YAML, et non du service de traduction de Symfony. Je peux voir cette utilisation dans mon
+fichier de configuration <b>app/config/config.yml</b> par exemple !</p>
+
+<p>Pour en revenir à l'organisation du catalogue avec ces mots-clés, j'ai intérêt à toujours respecter une structure de ce genre :</p>
+
+<pre>
+oc:                                         # Le namespace racine que j'utilise
+    platform:                               # Le nom du bundle, sans la partie Bundle
+        advert:                             # Le nom de l'entité ou de la section
+            list:  Liste                    # Les différents messages, pages et/ou actions
+            new:   nouveu                   # Etc.
+</pre>
+
+<h3>3.) Permettre le retour à la ligne au milieu des chaînes cibles</h3>
+
+<p>Certains éditeurs ne gèrent pas le retour à la ligne automatique, et du coup, ce ne sont pas les chaînes sources trop longues qui posent
+problème, mais les chaînes cibles.  Le parseur YAML fourni avec Symfony supporte une syntaxe intéressante qui permet d'éviter d'avoir
+à faire défiler horizontalement le contenu des catalogues.</p>
+
+<p>Voyons tout de suite un exemple illustrant tout cela, avec la charte du site OpenClassrooms :</p>
+
+<b>Réf messages_charte.fr.yml</b>
+
+<p>Avec la pipe et le chevron, je peux donc faire tenir mon catalogue sur 80 caractères de large, ou tout autre nombre qui me convient.</p>
+
+<h3>4.) Utiliser des listes</h3>
+
+<p>Encore une possibilité du langage YAML qui peut s'avérer pratique dans le cas de catalogues !</p>
+
+<p>Reprenons l'exemple précédent de la charte pour en faire une liste. En effet, on rencontre souvent une série de paragraphes, dont
+certains seront supprimés, d'autres ajoutés, et il faut pouvoir le faire assez rapidement. Si je n'utilise pas de liste, et que je 
+supprime la partie 2 sur 3, ou que j'ajoute un nouveau paragraphe entre deux autres... je dois soit adapter ma vue, soit renuméroter les
+parties et paragraphes. Bref, ce n'est clairement pas idéal.</p>
+
+<p>Heuseusement, il y a un moyen d'éviter cela en YAML, voici comment :</p>
+
+<b>Réf messages_charte2.fr.yml</b>
+
+<p class="well">
+Va-t-on pouvoir utiliser cela dans une boucle <b>for</b> ?</p>
+
+<p>C'est justement l'idée ! On peut utiliser une structure qui va générer une partie de ma page de conditions générales d'utilisation en
+bouclant sur les valeurs du catalogue. Cela va donner quelques chose comme cela :</p>
+
+<pre>{# Dans une vue #}
+
+{% for i in 0..2 %}
+    &lt;p>{{ ('charte.donnee.' ~ i)|trans }}&lt;/p>
+{% endfor %]
+</pre>
+
+<p>Donc quand j'ajoute un paragraphe, je l'insère à la bonne place dans le catalogue, sans me préoccuper de son numéro. Je n'ai qu'à
+incrémenter la fin de la séquence dans le <b>for</b>. De même si je supprime un paragraphe, je n'ai qu'à décrémenter la limite de la
+séquence.</p>
+
+<p class="aw">
+Comme en PHP, les tableaux récupérés depuis YAML commencent à 0 et non 1.</p>
+
+<h3>5.) Utiliser les domaines</h3>
+<h4>a./ La notion de domaines</h4>
+
+<p>Si j'ai commencé à bien remplir mon fichier <b>messages.fr.yml</b>, je peux me rendre compte qu'il grossit assez vite. Et surtout, 
+qu'il peut y avoir des conflits entre les noms des chaînes sources si je ne fais pas assez attention.</p>
+
+<p>En fait,  il est intéressant de regrouper les traductions par domaine. Le domaine par défaut est <b>messages</b>, c'est pourquoi nous
+utilisons depuis le début le fichier <b>messages.XX.XXX</b>. Un domaine correspond donc à un fichier.</p>
+
+<p>Je peux donc créer autant de fichiers/domaines que je veux, la première partie représentantle nom du domaine de traduction que je 
+devrai utiliser.</p>
+
+<p class="well">
+Mais comment définir le domaine à utiliser pout telle ou telle traduction ?</p>
+
+<p>C'est un argument à donner à la balise, au filtre  ou à la fonction <b>trans</b>, tout simplement :</p>
+
+<ul>
+	<li>Balise : <b>{% trans from 'domaine' %}chaîne{% endtrans %}</b></li>
+	<li>Filtre : <b>{{ 'chaîne'|trans({}, 'domaine') }}</b></li>
+	<li>Service : <b>$translator->trans('chaîne', array(), 'domaine')</b></li>
+</ul>
+
+<p>C'est pour cette raison qu'il faut utiliser les domaines avec parcimonie. En effet, si je décide d'utiliser un domaine différent de 
+celui par défaut (<b>messages</b>), alors il me faudra le préciser dans chaque utilisation de <b>trans</b> ! Attention donc à ne pas
+créer 50  domaines inutilement, le choix doit avoir un intérêt et non présenter un handicap.</p>
+
+<h4>b./ Les domaines et bundles</h4>
+
+<p class="well">
+Quelle est la différence entre un domaine et son bundle ? Est-ce qu'on peut avoir les mêmes domaines dans des bundles différents ?</p>
+
+<p>Autant de questions qui me taraudent l'esprit ! En fait, c'est plutôt simple : les domaines n'ont rien  à voir avec les bundles. Voilà,
+c'est dit.</p>
+
+<p>Du coup, cela veut dire que je peux tout à fait avoir un domaine "A" dans un bundle,  et ce même domaine "A" dans un autre bundle. Le 
+contenu de cex deux bouts de catalogues vont s'additionner pour former le catalogue complet du domaine "A". C'est ce que nous faisons 
+déjà avec le domaines <b>messages</b> en fait ! Une vue du bundle "A" pourra utiliser une traduction définie dans le bundle "B",
+et inversement, à condition que le domaine soit le même.</p>
+
+<p>Et si plusieurs fichiers d'un même domaine définissent la même chaîne source, alors c'est le fichier qui est chargé en dernier qui
+l'emporte (il écrase la valeur définie par les précédents). L'ordre de chargement des fichiers du catalogue est le même que celui de
+l'instanciation des bundles dans le Kernel. Il faut donc vérifier tout cela dans mon fichier <b>app/AppKernel.php</b>.</p>
+
+<h4>c./ Un domaine spécial: validators</h4>
+
+<p>On ne peut pas traduire les messages que l'on affiche lors d'erreurs à la soumission de formulaires comme le reste du texte.</p>
+
+<p class="well">
+Pourtant, les messages d'erreur fournis par le framework étaient traduits, eux !</p>
+
+<p>Oui, mais c'est parce que Symfony n'utilise pas le domaine "messages" pour traduire les messages d'erreur dans des formulaires. Le
+framework est prévu pour travailler avec le domaine "validators" dans ce contexte des messages d'erreur de formulaires. Il me suffit
+alors de le placer mes traductions dans ce domaine (dans le fichier <b>validators.fr.yml</b>), et ce dans le bundle de mon choix comme
+nous venons de le voir.</p>
+
+<p>On reviendra sur ce domaine spécial un peu plus loin.</p>
+
+<h2>VI./ Traductions dépendantes de variables</h2>
+
+<p>La traduction d'un texte n'est pas quelque chose d'automatique. En effet, toutes les langues ne se ressemblent pas, et il peut y avoir
+des différences qui ont des conséquences importantes sur notre façon de gérer les traductions.</p>
+ 
+<p>Prenons deux exemples parlants :</p>
+ 
+<ul>
+	<li>En français, le point d'exclamation est précédé par une espace, alors qu'en anglais ce n'est pas le cas. La traduction de
+ 		<b>Hello {{ name }}!</b> devenant <b>Bonjour {{ name }}!</b> n'est donc pas idéale.</li>
+ 	<li>En anglais, comme en français, mettre au pluriel nom ne se limite pas toujours à rajouter un "s" à la fin. Comment faire un 
+ 		<b>if</b> dans notre vue pour prendre cela en compte ?</li>
+</ul>
+ 
+<p>Le composant de traduction a tout prévu !</p>
+ 
+<h3>1.) Les placeholders</h3>
+<h4>a./ Présentation des placeholders</h4>
+
+<p>La solution de Symfony pour les points d'exclamation est relativement simple: on va utiliser un <strong>placeholder</strong>, sorte 
+de paramètre dans une chaîne cible. Cela va nous permettre de régler ce problème d'espacement. Je rajoute ceci dans mes catalogues 
+français et anglais :</p>
+
+<b>Réf messages2.fr.yml</b>
+<b>Réf messages.en.yml</b>
+
+<p>Nous avons ainsi mis un <em>placeholder</em> nommé <b>%name%</b> danc chacune de mes traductions anglaise et française. La valeur
+de ce placeholder sera spécifiée lors du rendu de la vue, ce qui permet de traduire la phrase complète. Cela évite de découper les 
+traductions avec une partie avant et une autre après la variable, et heureusement lorsque j'ai plusieurs variables dans une même phrase.</p>
+
+<p>Bien entendu, il faut adapter un peut notre vue, voici comment passer la valeur du placeholder de la vue au traducteur :</p>
+
+<b>Réf translation3.html.twig</b>
+
+<p>Le 1er paramètre  donné ici au filtre <b>trans</b> est un tableau, dont les index sont les placeholders avec les caractères <b>%</b>
+qui le délimitent, et les valeurs, celles par lequelles le placeholder sera remplacé dans la chaîne cible. Je viens de dire à Symfony que
+"quand tu traduis la chaîne source 'hello', tu vas remplacer <b>%name%</b> qui se trouve dans la chaîne cible  par le contenu de la 
+variable <b>name</b>", qui contient le nom d'utilisateur.</p>
+
+<p class="aw">
+Un placeholder <em>doit</em> être une chaîne encadré par de <b>%</b> dans les vues, alors que ce n'est pas réemmement nécessaire pour le 
+service. Mais par convention, et pour mieux les voir dans les chaînes cibles lors de l'ajout d'une nouvelle langue par exemple, mieux
+vaut les utiliser partout. <br>
+Du coup, ces caractères <b>%</b> doivent être présents dans l'index du tableau des placeholders donné
+au filtre.</p>
+
+<p>Ainsi le problème du point d'exclamation est réglé !</p>
+
+<p>Parce qu'on n'utilise pas toujours le filtre, voici les syntaxes pour toutes les possibilités d'utilisation :</p>
+
+<ul>
+	<li>Balise : <b>{% trans with {'%name%': name} %}hello{% endtrans %}</b>.</li>
+	<li>Filtre : <b>{{ 'hello'|trans({'%name%': name}) }}</b>.</li>
+	<li>Service : <b>$translator->trans('hello', array('%name%' => $name))</b>.</li>
+</ul>
+
+<p>Et dans le cas où le paramètre a une valeur fixe dans telle vue, je peux bien évidemment utiliser du texte brut à la place du nom de 
+la variable <b>name</b>, comme ceci :</p>
+
+<pre>{{ 'hello'|trans({'%name%': 'Platon'}) }}</pre>
+
+<p class="ai">
+Les noms qu'on a utilisé, <b>%name%</b> pour le placeholder et <b>{{ name }}</b> pour la variable Twig, sont totalement indépendants. 
+J'aurais pu utiliser <b>nom</b> pour l'un et <b>username</b> pour l'autre par exemple !</p>
+
+<h4>b./ Les <em>placeholders</em> dans le domaine validators</h4>
+
+<p>Les messages d'erreur de formulaires, qui sont donc dans le domaine validators, peuvent contenir des nombres, principalement si on
+spécifie des contraintes de longueur. Ces nombres, il faut bien les afficher à l'utilisateur. Pour y parvenir, je pourrais être
+tenté d'utiliser les placeholders...</p>
+
+<p>Raté ! Ce n'est pas du tout comme cela qu'il faut faire dans ce cas. C'est, on pourrait dire, l'exception qui confirme la règle !</p>
+
+<p>Donc dans le cas des messages d'erreur générés par le composant <b>Validator</b>, et uniquement dans ce cas, il ne faut pas utiliser
+les placeholders, mais une syntaxe propre à la validation. Cette syntaxe est la même que celle de Twig en fait : <b>{{ limit }}</b>.</p>
+
+<p>Prenons le cas où j'ai utilisé la contrainte <b>Length</b>, on a par exemple envie de mentionner le nombre limite de caractères (que 
+ce soit le maximum ou le minimum) et le nombre de caractères entrés par l'utilisateur. Ces valeurs sont fournis par le service de 
+validation, dans les variables <b>limit</b> et <b>value</b> respectivement. Ce n'est donc pas <b>%limit%</b> qu'il faut utiliser
+dans ma traduction, mais <b>{{ limit }}</b>, comme ceci : </p>
+
+<b>Réf validators.fr.ylm</b>
+
+<p class="ai">
+Je peux noter les guillemets autour des chaînes cibles. Ils sont aussi à mettre obligatoirement - encore un détail à ne pas oublier.</p>
+
+<p>La raison de cette exception est que le validateur n'envoie pas la valeurs de ces variables au traducteur, il les garde pour lui et
+fait la substitution <em>après</em> le retour de la chaîne traduite par le traducteur.</p>
+
+<h3>2.) Gestion des pluriels</h3>
+
+<p>On va maintenant essayer d'afficher (et y réussir !) le nombre d'annonces correspondan à une catégorie, sous la forme "Il y a 
+(nombre) annonces", en respectant ce qu'on appelle la grammaire.</p>
+
+<p>Pour l'instant, je ne sais que mettre des <b>if</b> et des <b>else</b> dans la vue. Et cela induirait l'écriture de deux traductions,
+avec une chaîne source pour le singulier et une autre pour le pluriel.</p>
+
+<p>Heureusement, les concepteurs de Twig et de Symfony ont déjà réfléchi à cela et ont tout prévu ! En effet, il existe une 
+balise/filtre/fonction <b>transchoice</b> créée pour ce genre de cas, et elle s'utilise avec en argument le nombre sur lequel faire 
+la condition. Voyons donc tout cela.</p>
+
+<p>Le filtre :</p>
+
+<pre>{{ 'advert.nombre'|transchoice(nombre) }}</pre>
+
+<p>La balise :</p>
+
+<pre>{% transchoice nombre %}advert.nombre{% endtranschoice %}</pre>
+
+<p>Le service :</p>
+
+<pre>$translator->transchoice('advert.nombre', $nombre)</pre>
+
+<p>Le catalogue, quant à lui, contient donc les deux syntaxes dans une même chaîne source. Voici la syntaxe particulière à adopter :</p>
+
+<b>Dans messages3.fr.yml :</b>
+
+<pre># src/OC/PlatformBundle/Resources/translations/messages.fr.yml
+
+advert:
+    nombre: "[0,1]Il y a %count% annonce|[2,+Inf]Il y a %count% annonces"
+</pre>
+
+<p>Avec cette syntaxe, Symfony pourra savoir que la 1re partie est pour 0 et 1 annonce, et la seconde pour 2 ou plus. On ne va pas
+s'attarder là-dessus, <a href="https://symfony.com/doc/3.3/translation.html#intervalle-explicite-de-pluralisation">la documentation
+officielle</a> est là si je veux absolument plus d'informations.</p>
+
+<p class="ai">
+Notons que le placeholder <b>%count%</b> est automatiquement remplacé par le paramètre donné à la nouvelle fonction <b>transchoice</b> pour
+qu'elle détermine la chaîne cible à utiliser. Il n'est donc pas nécessaire de passer manuellement le tableau de placeholders comme on a 
+pu le faire précédemment. Par contre, le nom du placeholder est obligatoirement %count%, il me faut donc l'utiliser dans la chaîne cible.</p>
+
+<h3>3.) Afficher les dates au format local</h3>
+
+<p class="well">
+Comment traduire les nom des jours/mois lorsqu'on affiche les dates, ce qui arrive souvent ?</p>
+
+<p class="alert alert-danger">
+Si je n'ai pas les extensions <b>ICU</b> et <b>Intl</b> installées et activées sur mon serveur, je ne pourrais pas appliquer ce qu'on
+va voir dans la suite de ce chapitre.
+Il faut donc vérifier si mon serveur de production possède ces extensions en accédant au <b>config.php</b> disponible dans le répertoire
+<b>/web</b>. Si j'ai une recommendation qui me parle d'Intl, je dois installer et/ou activer l'extension si j'ai un serveur dédie, et
+tenter de discuter avec l'hébergeur si je suis sur un serveur mutualisé.</p>
+
+<p>Pour afficher les dates sous la forme "vendredi 11 janvier 2017", je dois sûrement déjà utilisé le code 
+<b>{{ date|date('l j F Y') }}</b>. Malheureusement, l'objet <b>Date</b> de PHP n'est pas très bon en langues... et quelque soit ma
+locale, les noms de jours et de mois sont en anglais. D'ailleurs, ils le sont même sur la 
+<a href="http://fr2.php.net/manual/fr/function.date.php">page de documentation en français</a>.</p>
+
+<p>Qu'on se rassure, il est bien possible de traduire ces dates ! Dans nos vues Twig, il va falloir pour cela utiliser le filtre 
+<b>localizeddate</b> à la place de juste <b>date</b>. Son utilisation est la suivate :</p>
+
+<pre>{{ date|localizeddate(dateFormat, timeFormat, locale) }}</pre>
+
+<p>Les paramètres qu'on lui passe sont les suivants :</p>
+
+<ol>
+	<li><b>dateFormat</b>: le format pour la date</li>
+	<li><b>timeFormat</b>: le format pour l'heure</li>
+	<li><b>locale</b>: la locale dans laquelle afficher la date formatée. Pas besoin de la spécifier, elle est fournie dans le contexte.</li>
+</ol>
+
+<p class="well">
+Mais pourquoi séparer les formats de date et d'heure ?</p>
+
+<p>Voilà, c'était trop beau pour être vrai, on ne peut pas utiliser la syntaxe habituelle pour le format date/heure (du moins, pas encore).
+&Agrave; la place, on a le choix entre quatre formats : <b>full, long, medium</b> et <b>short</b>, pour l'heure comme pour la date, 
+correspondant aux affichages donnés dans le tableau suivant. Il n'est pas possible de les modifier, mais il est en revanche possible
+de les combiner (donc avoir la date <b>long</b> et l'heure <b>short</b> par exemple). &Agrave; défaut de pouvoir faire exactement comme
+on veut, on a au moins les mois et les jours traduits correctement, et dans un format tout de même convenable.</p>
+
+<table class="table table-striped table-condensed">
+	<tr class="warning"><th>Format</th><th>Date</th><th>Heure</th></tr>
+	<tr><td><b>full</b></td><td>jeudi 15 novembre 2016</td><td>14:22:15 Heure normale de l'Europe centrale</td></tr>
+	<tr><td><b>long</b></td><td>15 novembre 2016</td><td>14:22:15 HNEC</td></tr>
+	<tr><td><b>medium</b></td><td>15 nov. 2016</td><td>14:22:14</td></tr>
+	<tr><td><b>short</b></td><td>15/11/2016</td><td>14:22</td></tr>
+	<tr><td><b>none</b></td><td>(rien)</td><td>(rien)</td></tr>
+</table>
+
+<p class="ai">
+Notons que si la locale est simplement <b>fr</b>, une virgule  s'ajoute après le nom du jour (donnant "jeudi, 15 novembre 2016") ainsi 
+qu'un "h" après la chaîne "H:m:s" ("14:22:15 h Heure normale de l'Europe centrale") pour le format <b>full</b> et la date au format 
+<b>short</b> aura pour séparateurs des points au lieu des slashes. On n'utilise que très rarement le formats <b>full</b> et <b>long</b>
+pour l'heure.</p>
+
+<p>On a précisé ici en dur la locale, mais dans mon code il ne faut pas la mettre : elle est automatiquement définie à la locale 
+courante. Mon utilisation sera ainsi aisée :</p>
+
+<pre>Aujourd'hui nous sommes le {{ 'now'|localizeddate('full', 'none') }} et il est {{ 'now'|localizeddate('none', 'short') }}</pre>
+
+<p>J'obtiendrai alors quelque chose du genre : "Aujourd'hui nous sommes le lundi 14 janvier 2016 et il est 20:02"</p>
+
+<p>Attention, si Twig ne reconnaît pas mon filtre <b>localizeddate</b>, c'est que je n'ai pas encore activé l'extension Twig qui 
+fournit  ce filtre.</p>
+
+<p>L'extension ne se trouve pas dans le coeur de Twig, il me faut d'abord ajouter la bibliothèque  <b>twig/extensions</b> version
+<b>~1.3</b> via composer...</p>
+
+<p>Puis, il faut activer l'extension, en rajoutant simplement cette définition de service dans mon fichier de configuration, cela 
+fonctionne exactement comme l'extension Twif qu'on a faite il y a quelque chapitres :</p>
+
+<b>Réf config2.yml</b>
+
+<p class="ai">
+Plus d'informations sur les autres extensions Twig peuvent se trouver à l'adresse suivante : <br>
+<a href="https://twig.symfony.com/doc/2.x/extensions/index.html">https://twig.symfony.com/doc/2.x/extensions/index.html</a></p>
+
+<h3>Pour conclure</h3>
+
+<p>Voici pour terminer un petit récapitulatif des différentes syntaxes complètes, sachant que la plupart des arguments sont 
+facultatifs.</p>
+
+<b>Les balises :</b>
+
+<pre>{# Texte simple #}
+{% trans with {'%placeholder%': placeholderValue} from 'domaine' into locale %}maChaîne{% endtrans %}
+
+{% Texte Avec gestion de pluriels #}
+{% transchoice count width {'%placeholder%': placeholderValue} from 'domaine' into locale %}maChaîne{% endtranschoice %}</pre>
+
+<b>Les filtres :</b>
+
+<pre>{% Texte simple #}
+{{ 'maChaîne'|trans({'%placeholder%': placeholderValue}, 'domaine', locale) }}
+
+{# Avec gestion de pluriel #}
+{{ 'maChaîne'|transchoice(count, {'%placeholder%': placeholderValue}, 'domaine', locale) }}
+</pre>
+
+<b>Les méthodes du service :</b>
+
+<pre>// Texte simple 
+$translator->trans('maChaîne', array('%placeholder%' => $placeholdingValue), 'domaine', $locale);
+
+// Avec gestion de pluriel
+$translator->transchoice($count, 'maChaîne', array('%placeholder%' => $placeholdingValue), 'domaine', $locale);
+</pre>
+
+<h2>En résumé :</h2>
+
+<ul>
+	<li>La méthodologie d'une traduction est la suivante :
+	<ul>
+		<li>Détermination du texte à traduire : cela se fait grâce à la balise et au filtre Twig, ou directement grâce au service 
+			translator ;</li>
+		<li>Détermination de la langue cible : cela s'obtient avec la locale, que Symfony définit soit à partir de l'URL, soit à partir
+			 des préférences de l'internaute.</li>
+	</ul></li>
+	<li>Traduction à l'aide d'un dictionnaire : cela correspond aux catalogues dans Symfony ;</li>
+	<li>Il existe plusieurs formats possibles pour les catalogues, le YAML étant le plus simple ;</li>
+	<li>Il existe différentes méthodes pour bien organiser ses catalogues, il faut juste y penser !</li>
+	<li>Il est possible de faire varier les traductions en fonction de paramètres et/ou de pluriels.</li>
+	<li>Le code du cours tel qu'il doit être à ce stade est disponible sur la branche 
+	<a href="https://github.com/winzou/mooc-symfony/tree/iteration-19">iteration-19</a> du dépot Github.</li>
+</ul>
+
+<p class="ai">
+Si j'ai des doutes sur mon code, je peux aussi utiliser 
+<a href="https://insight.sensiolabs.com/">SensioLabsInsight</a>, l'outil d'analyse de code de SensioLabs !</p>
+
+
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Le routeur de Symfony</title>
+</head>
+<body>
+<pre>
+                                                          Le routeur de Symfony
+                                                          
+Le routeur, bien que différemment, permet de faire l'équivalent de <em>l'URL rewriting</em>, mais il le fait du côté PHP, et donc de façon
+bien mieux intégrée à mon code.
+
+<h3>
+I./ Fonctionnement
+</h3>
+1.) Avant-goût
+
+Chaque route fait la correspondre entre une URL et un jeu de paramètres. Le paramètre qui m'intéressera le plus souvent est 
+<strong>_controller</strong>, qui correspond au contrôleur à exécuter.
+Voici les routes dont je me servirai pour ma plateforme : 
+
+Réf routing.yml
+
+Attention: l'indentation en YAML se fait avec 4 espaces par niveau.
+
+Note : je peux supprimer la route oc_hello_world que j'ai créé au chapitre précédent, elle ne me servira plus. 
+
+2.) Fonctionnement du routeur
+
+Voici le schéma montrant le fonctionnement du routeur, actualisé pour mes routes actuelles :
+
+Réf schema_routeur.png
+
+Dans la route oc_platform_view, {id} est un paramètre, une sorte de joker "je prends tout". Et lorsqu'il y a une correspondance avec
+cette route, les paramètres de sortie de cette route sont :
+
+	-	le contrôleur <strong>OCPlatformBundle:Advert:view</strong>
+	-	La valeur de $id = 5 (en supposant que l'URL entré est "/platform/advert/5")
+	
+Pour chaque page, il est possible de visualiser toutes les routes que le routeur essaye une à une, et celle qu'il utilise finalement. C'est
+le Profiler qui s'occupe de tracer cela, accessible depuis la barre d'outils: je clique sur le nom de la route dans la barre d'outils,
+"oc_platform_home" si je suis sur la page /platform. Ca m'amène dans l'onglet "Request" du Profiler, mais c'est l'onglet "Routing" qui
+m'intéresse. Je devrai obtenir la figure suivante :
+
+Réf routing_profiler.png
+
+Note : je constate qu'il y a déjà plusieurs routes définies alors que je n'ai rien fait. Ces routes qui commencent par "/_profiler/"
+sont les routes nécessaires au Profiler, dans lequel je suis. Eh oui, c'est un bundle également, le bundle WebProfilerBundle !
+
+3.) Convention pour le nom du contrôleur
+
+C'est la même convention que pour appeler un template (vue au chapitre précédent). 
+Pour rappel : 
+
+<strong>NomDuBundle:NomDuContrôleur:NomDeLAction</strong>
+
+<h3>
+II./ Les routes de base
+</h3>
+1.) Créer une route
+
+Etudions la première route plus en détail: 
+
+												___________________________________________
+												
+# src/OC/PlatformBundle/Resources/config/routing.yml
+
+oc_platform_home:
+    path:      /platform
+    defaults:  
+        _controller: OCPlatformBundle:Advert:index
+        
+        										___________________________________________
+        										
+Ce bloc représente ce que l'on nomm une "route". Elle est constituée au minimum de trois éléments: 
+
+	-	<strong>oc_platform_home</strong> est le nom de la route. Il n'a aucune importance dans le travail du routeur pour trouver le bon
+				contrôleur étant donné une URL. Mais il interviendra lorsque l'on voudra générer des URL : eh oui, on n'écrira pas l'URL
+				à la main, mais on fera appel au routeur pour qu'il fasse le travail à ma place ! L'essentiel est d'avoir un nom de route
+				unique et clair. On	a donc préfixé les routes de "oc_platform" pour l'unicité entre bundles
+	-	<strong>path: /platform</strong> est l'URL sur laquelle la route s'applique. Ici "/platform" correspond à l'URL absolue du
+				type <strong>http://www.monsite.com/platform</strong>
+	-	<strong>deaults:    _controller: OCPlatformBundle:Advert:index</strong> correspond aux paramètres de sortie de la route. Ici, seul
+				le contrôleur à appeler est mentionné, mais ce tableau defaults peut contenir d'autres paramètres.
+				
+2.) Créer une route avec des paramètres
+
+Dans la route <strong>oc_platform_view</strong>, j'ai un paramètre <em>{id}</em> dans le <em>path</em> de ma route. Et grâce à ce paramètre
+toutes les URL du type /platform/advert/* seront gérées par cette route. Ce paramètre est obligatoire ici, mais ça peut être autre chose 
+qu'un nombre (car on n'a spécifié aucune contrainte).
+
+Mais si le routeur s'arrêtait là, il n'aurait aucun intérêt. Toute sa puissance réside dans le fait que ce paramètre {id} est accessible
+depuis mon contrôleur. Si j'appelle l'URL <em>platform/advert/5</em>, alors depuis mon contrôleur j'aurai la variable $id (du nom du 
+paramètre) en argument de la méthode, variable qui aura pour valeur "5". 
+
+Je peux bien sûr multiplier les paramètres au sein d'une même route. J'ajoute cette route juste après la route oc_platform_view, pour
+l'exemple : 
+
+												_______________________________
+												
+# src/OC/PlatformBundle/Resources/config/routing.yml
+
+oc_platform_view_slug:
+    path:      /platform/{year}/{slug}.{format}
+    defaults:
+        _controlller: OCPlatformBundle:AdvertviewSlug
+        
+        										_______________________________
+        										
+Cette route intercepte par exemple les URL suivantes : 
+
+<em>/platform/2011/besport-always.html</em>
+<em>/platform/truc/bidule.credule</em>
+
+Et voici la méthode correspondante qu'on aurait côté contrôleur :
+
+												_______________________________
+												
+public function viewSlugAction($slug, $year, $format) {
+	return new Response (
+		"On pourrait afficher l'annonce correspondant au slug '".$slug."', créée en ".$year." et au format ".$format."."
+	);
+
+												_______________________________
+												
+Note : l'ordre des arguments dans la définition de la méthode viewSlugAction() n'a aucune importance. La route fait la correspondance à 
+partir du nom des variables utilisées, non à partir de leur ordre.
+
+Attention: il faudra faire attention à ne pas avoir de "." dans le contenu du {slug}, comme il y a déjà un point entre ce paramètre et le
+paramètre {format}.
+
+<h3>
+III./ Les routes avancés
+</h3>
+1.) Créer une route avec des paramètres et leurs contraintes
+
+Voici comment je transforme ma route oc_platform_view_slug en lui ajoutant des paramètres appropriés :
+
+												_______________________________
+												
+# src/OC/PlatformBundle/Resources/config/routing.yml
+
+oc_platform_view_slug:
+    path:      /platform/{year}/{slug}.{format}
+    defaults:  
+        _controller: OCPlatformBundle:Advert:viewSlug
+    requirements:
+        year:    \d{4}
+        format:  html|xml
+        
+       											_______________________________
+       											
+
+J'ai ajouté la section <strong>requirements</strong>. Et j'ai utilisé les expressions régulières pour déterminer les
+contraintes que doivent respecter les paramètres. 
+
+2.) Utiliser des paramètres facultatifs
+
+Je vais maintenant ajouter à cette route la possibilité pour {format}  de ne pas être renseigné, en sorte que ce paramètre ait une valeur
+par défaut :
+
+												_______________________________
+												
+oc_platform_view_slug:
+    path:      /platform/{year}/{slug}.{format}
+    defaults
+        _controller: OCPlatformBundle:Advert:viewSlug
+        format:      html
+    requirements:
+        year:   \d{4}
+        format: html|xml
+        
+        										_______________________________
+        										
+Note: pour plus de clarté, j'ai mis le tableau <strong>_defaults</strong> sur 2 lignes, mais j'aurais tout aussi bien bien pu écrire tout
+sur la même ligne, comme ceci : 
+
+<strong>defaults: { _controller: OCPlatformBundle:Advert:viewSlug, format: html }</strong>
+
+3.) Utiliser des "paramètres système"
+	
+Prenons l'exemple de mon paramètre {format}: lorsqu'il vaut "xml", je vais afficher du XML et devrai renvoyer le header avec le bon 
+<em>Content-type</em>. Les développeurs de Symfony ont prévu, pour ce gengre de cas, des "paramètres système". Ils s'utilisent 
+exactement comme des paramètres classiques, mais le Kernel de Symfony va effectuer automatiquement des actions supplémentaires lorsqu'il
+les détecte.
+
+a./ Le paramètre {_format}
+
+Lorsqu'il est utilisé (comme mon paramètre {format}, j'ajoute juste un <em>underscore</em>), alors un header avec le Content-type 
+correspondant est ajouté à la réponse retournée. Exemple: j'appelle <em>/platform/2014/webmaster.xml</em> et le Kernel sait que la réponse
+par le contrôleur est du XML, grâce au paramètre "_format" contenu dans la route. Ainsi, avant d'envoyer la réponse à mon navigateur, le
+header <strong>Content-type: application/xml</strong> sera ajouté.
+
+Attention: le nom de l'argument de la méthode du contrôleur devra être $_format et non $format. 
+
+Note: Le navigateur affichera une erreur si le Content-type de la réponse n'est pas exactement celui annoncé par le header.
+
+b./ Le paramètre {_locale}
+
+Lorsqu'il est utilisé, il définit la langue dans laquelle l'utilisateur souhaite obtenir la page. Ainsi, si j'ai défini des fichiers de 
+traduction ou si j'emploie des bundles qui en utilisent, alors les traductions dans la langue du paramètre {_locale} seront chargées. Il
+faudra penser à mettre un <strong>requirements:</strong> sur la valeur de ce paramètre pour éviter que les utilisateur ne demandent du chinois
+alors que mon site n'est que bilingue français-anglais.
+
+c./ Le paramètre {_controller}
+
+Eh oui, cette valeur n'est rien d'autre qu'un paramètre de route ! Evidemment, c'est un paramètre que je ne mettrai <strong>jamais</strong>
+dans le <strong>path</strong> de mes routes. Le tableau <strong>defaults</strong> correspond juste aux valeurs par défaut de mes 
+paramètres, qu'ils soient ou non présents dans le <strong>path</strong> de la route.
+
+4.) Ajouter un préfixe lors de l'import de mes routes
+
+Souvent, on veut mettre pour son site un préfixe pour tout ce qui relève d'une certaine catégorie. Dans notre cas, on met le préfixe 
+"/platform" à tout ce qui touche à la plateforme. Au lieu de le répéter dans chaque route, Symfony me propose de rajouter un
+préfixe lors de l'import du fichier de route de mon bundle.
+
+Je modifie donc le fichier <strong>app/config/routing.yml</strong> comme suit: 
+
+														_______________________________
+														
+# app/config/routing.yml
+
+oc_platform:
+    resource: "@OCPlatformBundle/Resources/config/routing.yml"
+    prefix:   /platform
+    
+   														_______________________________
+   														
+Je peux ainsi enlever la partie /platform de chacune de mes routes.
+
+Bonus: si je souhaite changer <strong>/platform</strong> par <strong>/awesomePlatform</strong>, je n'aurai à modifier qu'une seule ligne !
+
+<h3>
+IV./ Générer des URL
+</h3>
+1.) Pourquoi générer des URL ?
+
+Comme cela a été dit plus haut, le routeur peut aussi générer des URL à partir du nom des routes. En effet, vu que le routeur a 
+toutes les routes à sa disposition, il est capable d'associer une route à une certaine URL, mais également de reconstruire l'URL
+correspondant à une certaine route. Ce n'est pas une fonctionnalité annexe, mais bien un outil puissant que j'ai là !
+
+Par exemple, j'ai une route nommée "oc_platform_view" qui écoute l'URL <strong>/platform/advert/{id}</strong>. Je décide un jour
+de raccourcir mes URL et j'aimerais bien que mes annonces soient disponibles depuis <strong>/platform/a/{id}</strong>. Si j'avais écrit
+toutes mes URL à la main dans mes fichier HTML, j'aurais dû toutes les changer à la main, une par une. Grâce à la génération d'URL,
+je ne modifierai que la route : ainsi, toutes les URL générées seront mises à jour ! C'est un exemple simple, mais je peux trouver des 
+cas bien réels et tout aussi gênant sans la génération d'URL.
+
+2.) Comment générer des URL ?
+a./ Depuis le contrôleur
+
+Pour générer une URL, je dois demander au routeur en lui donnant deux arguments: le nom de la route ainsi que les éventuels paramètres
+de cette route. 
+Depuis un contrôleur, c'est la méthode <strong>$this->get('router')->generate()</strong> qu'il faut appeler. Par exemple : 
+
+Réf AdvertController.php
+
+La méthode generate() a besoin de 2 arguments :
+
+	-	Le premier est tout simplement le nom de la route;
+	-	Le deuxième est un tableau contenant les valeurs des paramètres pour la génération. En effet, l'objectif du routeur n'est pas de
+			générer <strong>/platform/advert/{id}</strong> qui n'aurait pas de sens, mais de générer une URL prête à être utilisée. Ce 
+			2e argument est facultatif si ma route n'utilise pas de paramètre.
+			
+Pour générer une URL absolue, lorsque j'envoie par e-mail par exemple, il faut définir le troisième argument de la méthode
+<strong>generate()</strong> à <strong>UrlGeneratorInterface::ABSOLUTE_URL</strong>.
+Exemple :
+
+														________________________________
+														
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+
+$url = $this->get('router')->generate('oc_platform_home', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+														________________________________
+														
+Ainsi, $url vaut <strong>http://monsite.com/platform</strong> et pas uniquement <strong>/platform</strong>.
+
+Note: comme mon contrôleur hérite du contrôleur de base de Symfony, j'ai également accès à une méthode raccourcie pour générer des routes.
+Voici deux méthodes strictement équivalentes : 
+														________________________________
+&lt;?php
+
+// Depuis un contrôleur
+
+// méthode longue
+$url = $this->get('router')->generate('oc_platform_home');
+
+// méthode courte
+$url = $this->generateUrl('oc_platform_home');
+
+2.) Depuis une vue Twig (mon moteur de templates)
+
+J'aurai bien plus l'occasion de générer une URL depuis les vues. C'est la fonction <strong>path</strong> qu'il faut utiliser depuis un 
+template Twig: 
+
+														________________________________
+														
+{# Dans une vue Twig, en considérant bien sûr que la variable advert_id est disponible #}
+
+&lt;a href="{{ path('oc_platform_home', { 'id': advert_id }) }}">
+	Lien vers l'annonce d'id {{ advert_id }}
+&lt;/a>
+
+														________________________________
+														
+Et pour générer une URL absolue depus Twig, pas de troisième argument, mais on utilise la fonction <strong>url()</strong> au lieu de 
+<strong>path()</strong>. Elle s'utilise exactement de la même manière, seul le nom change. Pas de panique par rapport à la syntaxe Twig, je
+l'étudierai dans un prochain chapitre.
+
+
+<h3>
+V./ Application: les routes de ma plateforme
+</h3>
+1.) Construction des routes
+
+Revenons à ma plateforme d'échange. Maintenant que je sais créer des routes, je vais faire un premier jet de ce que seront mes URL. Voici
+les routes que je vais créer.
+
+a./ Page d'accueil
+
+On souhaite avoir une URL très simple pour la page d'accueil: <strong>/platform</strong>. Comme <strong>/platform</strong> est 
+défini comme préfixe lors du chargement des routes de mon bundle, le <strong>path</strong> de ma route "/". 
+Cette page va lister les dernières annonces. Mais on veut aussi pouvoir parcourir les annonces plus anciennes, donc il me faut une
+notion de page. En ajoutant le paramètre facultatif <strong>{page}</strong>, j'aurai : 
+
+<strong>/platform</strong>		==>			page=1
+<strong>/platform/1</strong>	==>			page=1
+<strong>/platform/2</strong>    ==>			page=2
+etc.
+
+Voici la route:
+
+Réf routing2.yml
+
+b./ Page de visualisation d'une annonce
+
+Pour la page de visualisation d'une annonce, la route est très simple. Il suffuti juste de bien mettre un paramètre {id} qui me servira
+à récupérer la bonne annonce du contrôleur. Voci la route :
+
+Réf routing2.yml
+
+c./ Ajout, modification, suppression
+
+Réf routing2.yml
+
+<h3>
+En résumé:
+</h3>
+Une route est composée au minimum de deux éléments: l'URL à faire correspondre (son <strong>path</strong>), et le contrôleur à exécuter
+(paramètre <strong>_controller</strong>).
+Le routeur essaye de faire correspondre chaque route à l'URL appelée par l'internaute, et ce dans l'ordre d'apparition des routes : la 1re
+route qui correspond est sélectionnée.
+Une route peut contenir des paramètres, facultatifs ou non, représentés par les accolades {paramètre}, et dont la valeur peut être soumise
+à des contraintes via la section <strong>requirements</strong>.
+Le routeur est également capable de générer des URL à partir du nom d'une route, et de ses paramètres éventuels.
+Au final, j'ai un système de routes extrêmement flexible et maintenable. Le tout, sans trop d'efforts.
+
+
+
+
+                                                 
+</pre>
+</body>
+</html>

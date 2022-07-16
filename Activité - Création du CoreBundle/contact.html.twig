@@ -1,0 +1,15 @@
+{% extends 'CoreBundle::layout.html.twig' %}
+{% block title %}
+	Nous contacter - {{ parent() }}
+{% endblock %}
+
+{% block body %}
+	<p>Merci de nous laisser vos coordonnées en remplissant ce formulaire afin que nous puissions vous apporter une réponse correspondant à votre 
+	situation. Posez votre question également, directement, sans détour ou autre...</p>
+	{{ include('CoreBundle:Core:form.html.twig') }}
+	
+	<a href="{{ path('main_homepage') }}" class="btn btn-primary"><span class="badge">
+		<span class="glyphicon glyphicon-chevron-left"></span></span> Retour à l'accueil
+	</a>
+	
+{% endblock %}

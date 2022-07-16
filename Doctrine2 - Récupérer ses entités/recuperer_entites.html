@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Doctrine2 - Récupérer ses entités</title>
+</head>
+<body>
+														<h1>Doctrine2 - Récupérer ses entités</h1>
+
+L'une des principales fonction de la couche Modèle dans une application MVC, c'est la récupération des données. Récupérer ses données
+n'est pas toujours évident, surtout lorsqu'on veut récupérer uniquement certaines données, les classer selon des critères, etc. Tout
+cela se fait grâce aux <em>repositories</em>, que j'étudierai dans ce chapitre !
+
+<h2>I./ Le rôle des repositories</h2>
+<h3>1.) Définition</h3>
+
+Un <em>repository centralise tout ce qui touche à la récupération de mes entités.</em> Concrètement, cela veut dire que je ne dois pas
+faire la moindre requêt SQL ailleurs que dans un repository, c'est la règle. On va donc y construire des méthodes pour récupérer une 
+entité par son id, pour récupérer une liste d'entités suivant un critère spécifique, etc. Bref, à chaque fois que je dois récupérer
+des entités dans ma base de données, j'utiliserai le repository de l'entité correspondante. 
+
+Il existe un repository par entité. Cela permet de bien organiser son code. Bien sûr, cela n'empêche pas qu'un repository utilise
+d'autres entités, dans le cas d'une jointure par exemple. 
+
+Les repositories ne fonctionnent pas par magie, ils utilisent en réalité directement l'EntityManager pour faire leur travail. 
+
+<h3>2.) Deux façons pour construire mes requêtes de récupération des entités</h3>
+Depuis un repository, il existe deux façons de construire les entités: en utilisant du DQL et en utilisant le QueryBuilder.
+
+<h4>a./ Le Doctrine Query Language</h4>
+
+Le DQL n'est rien d'autre que du SQL adapté à la vision par objets que Doctrine utilise. Il s'agit donc de faire ce qu'on a 
+l'habitude de faire, des requêtes textuelles comme celle-ci par exemple :
+
+<b>
+SELECT a FROM OCPlatformBundle:Advert a
+</b>
+
+Je viens de voir ma première requête DQL.
+
+<h4>b./ Le QueryBuilder</h4>
+
+Le QueryBuilder est un moyen puissant. Comme son nom l'indique, il sert à construire une requête, par étape. Si l'intérêt n'est pas
+évident au début, son utilisation se révèle très pratique ! 
+Voici la même requête  que précédemment, mais en utilisant QueryBuilder :
+
+<b>
+$queryBuilder->select('a')
+			 ->from('OCPlatformBundle:Advert', 'a');
+			 
+</b>
+
+Avec QueryBuilder, on peut donc construire des requêtes intuitives, et on ne s'emmêle pas les pinceaux pour placer correctement
+un <b>WHERE champ=1</b> ou un <b>AND champ=1</b>, selon qu'un <b>WHERE</b> existe déjà dans la requête ou non :
+
+<b>
+$queryBuilder = ...;
+
+// Je rajoute ma condition, quel que soit ce que j'ai déjà dans mon QueryBuilder :
+$queryBuilder->andWhere('champ = 1');
+</b>
+
+Je verrai d'autres exemples plus loin.
+
+<h2>II./ Les méthodes de récupération de base</h2>
+<h3>1.) Définition</h3>
+
+Mes repositories héritent de la classe <b>Doctrine\ORM\EntityRepository</b>, qui propose déjà quelques méthodes très utiles pour
+récupérer des entités. Ce sont ces méthodes là que je vais voir ici.
+
+<h3>2.) Les méthodes normales</h3>
+
+Il existe quatre méthodes, que voici (tous les exemples sont effectués depuis un contrôleur)
+
+<h4>find($id)</h4>
+
+La méthode <b>find($id)</b> récupère tout simplement l'entité correspondante à l'id $id. Dans le cas de mon <b>AdvertRepository</b>,
+elle retourne une instance d'<b>Advert</b>. Par exemple :
+
+<b>
+$repository = $this
+	->getDoctrine()
+	->getManager()
+	->getRepository('OCPlatformBundle:Advert');
+
+$advert = $repository->find(5);
+// $advert est une instance de OC\PlatformBundle\Entity\Advert
+// Correspondant à l'id 5
+</b>
+
+Si aucune entité ne correspond à cet id 5, alors elle retourne <b>null</b>
+
+<h4>findAll()</h4>
+
+La méthode <b>findAll()</b> retourne un tableau de toutes les entités entités contenues dans la base de données. Le format du retour
+est un tableau PHP normal (un array). 
+
+<h4>findBy()</h4>
+
+La méthode <b>findBy()</b> est un peu plus intéressante. Comme <b>findAll()</b>, elle permet de retourner une liste d'entités, sauf
+qu'elle est capable d'effectuer un filtre pour ne retourner que les entités correspondant à un ou plusieurs critère(s). Elle
+peut aussi trier les entités, et même n'en récupérer qu'un certain nombre (pour une pagination). 
+
+La syntaxe est la suivante:
+
+<b>
+$repository->findBy(
+	array $criteria,
+	array $orderBy = null,
+	$limit = null,
+	$offset = null
+);
+</b>
+
+Voici un exemple d'utilisation :
+
+<b>
+$listAdverts = $repository->findBy(
+	array('author' => 'Alexandre'),		// Critère
+	array('date' => 'desc'),			// Tri
+	5,									// Limite
+	0									// Offset
+);
+
+foreach($listAdverts as $advert) {
+	echo $advert->getContent();
+}
+</b>
+
+Cet exemple va récupérer toutes les entités ayant comme auteur "Alexandre" en les classant par date décroissante et en en sélectionnant
+cinq à partir du début. Elle retourne un array également. Je peux mettre plusieurs entrées dans le tableau de critères, afin 
+d'appliquer plusieurs filtres (qui seront associés avec un <b>AND</b> et non un <b>OR</b>).
+
+<h4>findOneBy()</h4>
+
+La méthode <b>findOneBy(array $criteria, array $orderBy = null)</b> fonctionne sur le même principe que la méthode <b>findBy()</b>,
+sauf qu'elle ne retourne qu'une seule entité. Les arguments <b>$limit</b> et <b>$offset</b> n'existent donc pas. Exemple :
+
+<b>
+$advert = $repository->findOneBy(array('author' => 'Martin'));
+// $advert est une instance de Advert
+</b>
+
+A l'instar de la méthode <b>find</b>, la méthode <b>findOneBy</b> retourne <b>null</b> si aucune entité ne correspond aux 
+critères demandés. Si plusieurs entités correspondent aux critères, alors c'est la première dans l'ordre que j'ai demandé
+qui sera retournée.
+
+Ces méthodes permettent de couvrir pas mal de besoins. Mais pour aller plus loin encore, Doctrine supporte une méthode magique.
+
+<h3>3.) Les méthodes magiques</h3>
+
+Et la méthode magique est : <b>__call()</b>. Grâce à elle, Doctrine permet d'invoquer deux sortes de méthodes bien spécifiques.
+
+<h4>a./ findByX($valeur)</h4>
+
+Première méthode, en remplaçant <b>X</b>par le nom d'une propriété de mon entité. Dans mon cas, pour l'entité <b>Advert</b>, j'ai
+donc plusieurs méthodes : <b>findByTitle(), findByAuthor(), findByContent(), findByDate(), </b>etc.
+
+Attention: dans mon cas, je ne sais pas si je devrai ajouter l'underscore, genre <b>findBy_DatePublication()</b>...
+
+Cette méthode fonctionne comme si j'utilisais <b>findBy()</b> avec un seul critère, celui du nom de la méthode. 
+
+<b>
+$listAdverts = $repository->findByAuthor('Alexandre');
+// $listAdverts est un Array qui contient toutes les annonces écrites par Alexandre
+</b>
+
+<h4>b./ findOneByX($valeur)</h4>
+
+Deuxième méthode, en remplaçant "X" par le nom d'une propriété de mon entité. Dans le cas de l'entité Advert, j'ai donc plusieurs
+méthodes : <b>findOneByTitle(), findOneByAuthor(), findOneByDate(), findOneByContent()</b>, etc.
+
+Cette méthode fonctionne comme <b>findOneBy()</b> sauf que je ne peux mettre qu'un seul critère, celui du nom de la méthode. 
+
+<b>
+$advert = $repository->findOneByTitle('Recherche développeur');
+// $advert est une instance d'Advert dont le titre est "Recherche développeur" ou null si elle n'existe pas
+</b>
+
+Toutes les méthodes permettent de récupérer mes entités dans la plupart des cas. Simplement, elles montrent rapidement leurs limites
+lorsqu'on doit faire des jointures, ou effectuer des conditions complexes. Pour cela - et cela arrivera très souvent - il faudra
+faire mes propres méthodes de récupération.
+
+<h2>III./ Les méthodes de récupération personnelles</h2>
+<h3>1.) La théorie</h3>
+
+Pour développer mes prores projets, il me faut bien comprendre comment fonctionne Doctrine2 pour construire ses requêtes. Il faut
+notamment distinguer trois types d'objets qui vont me servir, et qu'il ne faut pas confondre : le QueryBuilder, la Query et les
+résultats. 
+
+<h3>2.) Le QueryBuilder</h3>
+
+On l'a déjà vu rapidement, le QueryBuilde permet de construire une Query, mais il n'est pas une Query lui-même !
+
+Pour récupérer un QueryBuilder, on peut utiliser simplement l'EntityManager. En effet, il dispose d'une méthode 
+<b>createQueryBuilder()</b> qui me retournera une instance de QueryBuilder. L'EntityManager est accessible depuis un repository
+en utilisant l'attribut <b>_em</b>, soit <b>$this->_em</b>. Le code complet pour récupérer un QueryBuilder depuis une méthode
+d'un repository est le suivant : <b>$this->_em->createQueryBuilder()</b>.
+
+Cependant, cette méthode me retourne un QueryBuilder vide, ie sans rien de prédéfini. C'est dommage, car lorsqu'on récupère un
+QueryBuilder depuis un repository, c'est que l'on veut faire une requête sur l'entité gérée par ce repository. Donc si l'on pouvait
+définir la partie <b>SELECT advert FROM OCPlatformBundle:Advert</b> sans trop d'effort, cela serait bien pratique, car ce qui est
+intéressant, c'est le reste de la requête. Heureusement, le repository contient également une méthode 
+<b>createQueryBuilder($alias)</b> qui utilise la méthode d'EntityManager, mais en définissant pour nous le <b>SELECT</b> et le
+<b>FROM</b>. Je peux jeter un oeil à cette méthode pour comprendre : 
+
+<b>
+public function createQueryBuilder($alias, $indexBy = null) {
+	return $this->_em->createQueryBuilder()
+					 ->select($alias)
+					 ->from($this->_entityName, $alias, $indexBy);
+}
+</b>
+
+L'alias en argument de la méthode est le raccourci que l'on donne à l'entité du repository. On utilise souvent la première lettre
+du nom de l'entité, dans mon exemple d'annonce, cela serait donc un "a".
+
+Passons maintenant à la pratique ! Pour bien comprendre la différence QueryBuilder / Query, ainsi que la récupération du QueryBuilder,
+rien de mieux qu'un exemple. Je vais recréer la méthode <b>findAll()</b> dans mon repository <b>Advert</b> :
+
+Réf <b>AdvertRepository.php</b>.
+
+Cette méthode <b>myFindAll()</b> fait exactement la même chose que <b>findAll()</b>.
+
+J'aurai pu écrire cette méthode directement comme ceci :
+
+<b>
+public function myFindAll() {
+	return $this->createQueryBuilder('a')
+				->getQuery()
+				->getResult();
+}
+</b>
+
+Le QueryBuilder dispose de pluseurs méthodes afin de construire ma requête . Il y a une ou plusieurs méthodes par partie de requête :
+le WHERE, le ORDER BY, le FROM, etc. Ces méthodes n'ont rien de compliqué, comme on va le voir.
+
+Commençons par recréer une méthode équivalente au <b>find($id)</b> de base, pour me permettre de manipuler le <b>where()</b> et le 
+<b>setParameter()</b>.
+
+Réf <b>AdvertRepository.php => myFindOne()</b>
+
+Je connaissais déjà le principe des paramètres, c'est le même qu'avec PDO. Comme pour PDO, le nom du paramètre (ici ":id") est 
+totalement libre.
+
+Voici un autre exemple pour utiliser le <b>andWhere()</b> et <b>orderBy()</b>. Créons une méthode pour récupérer toutes les 
+annonces écrites par un auteur avant une année donnée :
+
+Réf <b>AdvertRepository.php => findByAuthorAndDate()</b>
+
+On avait dit que le QueryBuilder permettait de costruire une requête avec plein de conditions/jointures/etc. Voyons donc une 
+application de ce principe, en considérant que la condition "annonces postées durant l'année en cours" est une condition dont
+on va se servir souvent. Il faut donc en faire une méthode, que voici :
+
+Réf <b>AdvertRepository.php => whereCurrentYear(QueryBuilder $qb)</b>
+
+Je note donc que cette méthode ne traite pas une Query, mais bien uniquement QueryBuilder. C'est en cela ce ce dernier est très
+pratique, car faire cette méthode sur une requête en texte simple est possible, mais très compliqué. Il aurait fallu voir si le 
+WHERE était déjà présent dans la requête, si oui mettre un AND au bon endroit, etc. Bref, pas simple.
+
+Pour utiliser cette méthode, voici la démarche :
+
+Réf <b>AdvertRepository.php => myFind()</b>
+
+Voilà, je peux dorénavant ajouter cette condition à n'importe laquelle de mes requêtes de construction.
+On n'a pas vu toutes les méthodes du QueryBuilder ici, il en existe d'autres. Pour cela, je dois absolument mettre la page suivante
+dans mes favoris : 
+<a href="http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/query-builder.html" target="_blank">
+http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/query-builder.html</a>.
+C'est la référence pour s'aider à construire une requête avec QueryBuilder.
+
+<h3>3.) La Query</h3>
+
+La Query est l'objet à partir duquel on extrait les résultats. Il n'y a pas grand chose à savoir sur cet objet en lui-même, car
+il ne permet pas grand-chose à part récupérer les résultats. Il sert en fait surtout à la gestion du cache des requêtes.
+
+Mais détaillons tout de même les différentes façons d'extraire les résultats de la requête. Ces différentes manières sont toutes
+à maîtriser, car elles concernent chacune un type de requête.
+
+<h4>a./ getResult()</h4>
+
+Exécute la requête et retourne un tableau contenant les résultats sous forme d'objets. Je récupère ainsi une liste d'objets, sur 
+laquelle je peux faire des opérations, des modifications, etc.
+
+Même si la requête ne retourne qu'un seul résultat, cette méthode retourne un tableau.
+
+<b>
+$listAdverts = $qb->getQuery()->getResult();
+
+foreach($listAdverts as $advert) {
+	// $advert est une instance d'Advert
+	$advert->getContent();
+}
+</b>
+
+<h4>b./ getArrayResult()</h4>
+
+Exécute la requête et retourne un tableau contenant les résultats sous forme de tableaux. Comme avec <b>getResult()</b>, je 
+récupère un tableau même s'il n'y a qu'un seul résultat. Mais dans ce tableau, je n'ai pas mes objets d'origine, j'ai des simples
+tableaux. Cette méthode est utilisée lorsque je ne veux que lire mes résultats, sans y apporter de modification. Elle dans ce cas
+plus rapide que son homologue <b>getResult()</b>.
+
+<b>
+$listAdverts = $qb->getQuery()->getArrayResult();
+
+foreach($listAdvets as $advert) {
+	// $advert est un tableau et non pas un objet
+	$advert['content'];
+}
+</b>
+
+Heureusement, Twig est assez intelligent pour gérer de la même façon les objets et les tableaux sans que j'aie besoin de changer
+leur écriture.
+
+Par contre attention, cela veut dire que si je fais une modification de mon tableau, par exemple :
+<b> $advert['content'] = 'Nouveau contenu';</b> ==> elle ne sera pas enregistrée dans la base de données lors du prochain <b>flush</b>.
+
+Cette méthode n'est donc à utiliser que si je suis certain de ne faire que de l'affichage avec mes résultats, et dans un souci
+d'optimisation.
+
+<h4>c./ getScalarResult()</h4>
+
+Exécute la requête et retourne un tableau contenant les résultats sous forme de valeurs. Comme avec <b>getResult()</b>, je 
+récupère un tableau même s'il n'y a qu'un seul résultat. 
+
+Mais dans ce tableau, un résultat est une valeur, non pas un tableau de valeurs (<b>getArrayResult()</b>) ou un objet de valeurs
+(<b>getResult()</b>). Cette méthode est donc utilisée lorsque je ne sélectionne qu'une seule valeur dans la requête, par exemple :
+
+<b> SELECT COUNT(*) FROM ...</b>
+
+Ici, la valeur est la valeur du <b>COUNT</b>.
+
+<b>
+$values = $qb->getQuery()->getScalarResult();
+
+foreach($values as $value) {
+	// $value est une valeur de ce qui a été sélectionné : un nombre, un texte, etc.
+	$value;
+	
+	// Faire $value->getAttribute() ou $value['attribute'] est impossible
+}
+</b>
+
+<h4>d./ getOneOuNullResult()</h4>
+
+Exécute la requête et retourne un seul résultat, ou <b>null</b> si pas de résultat. Cette méthode retourne donc une instance de 
+l'entité (ou <b>null</b>) et non pas un tableau d'entités comme <b>getResult()</b>.
+
+Cette méthode déclenche une exception <b>Doctrine\ORM\NotUniqueResultException</b> si la requête retourne plus d'un seul résultat.
+Il faut donc l'utiliser si l'une de mes requêtes n'est pas censée retourner plus d'un résultat: déclencher une erreur plutôt que de
+laisser courir permet d'anticiper de futurs bugs !
+
+<b>
+$advert = $qb->getQuery()->getOneOrNullResult();
+
+// $advert est une instance d'Advert
+// Ou null si la requête ne contient pas de résultat
+
+// Et une exception a été déclenchée si plus d'un résultat
+</b>
+
+<h4>e./ getSingleResult()</h4>
+
+Exécute la requête et retourne un seul résultat. Cette méthode est exactement la même que <b>getOneOrNullResult()<</b>, sauf qu'elle
+déclenche une exception <b>Doctrine\ORM\NoResultException</b> si aucun résultat.
+
+C'est une méthode très utilisée, car faire des requêtes qui ne retournent qu'un unique résultat est très fréquent. 
+
+<b>
+$advert = $qb->getQuery()->getSingleResult();
+
+// $advert est une instance d'Advert
+
+// Une exception a été déclenché si plus d'un résultat
+// Une exception a été déclenché si aucun résultat
+</b>
+
+<h4>f./ getSingleScalarResult()</h4>
+
+Exécute la requête et retourne une seule valeur, et déclenche des exceptions si pas de résultat ou plus d'un résultat.
+Cette méthode est très utilisée également pour des requêtes du type <b>SELECT COUNT(*) FROM Advert</b>, qui ne retournent qu'une
+seule ligne de résultat, et une seule valeur dans cette ligne. 
+
+<b>
+$value = $qb->getQuery()->getSingleScalerResult();
+
+// $value est directement la valeur du COUNT dans la requête exemple
+// Une exception a été déclenchée si plus d'un résultat
+// Une exception a été déclenchée si aucun résultat
+</b>
+
+<h4>g./ execute()</h4>
+
+Exécute la requête. Cette méthode est utilisée principalement pour exécuter des requêtes qui ne retournent pas de résultats (des
+<b>UPDATE, INSERT INTO, </b>etc.) :
+
+<b>
+// Exécute un UPDATE par exemple :
+$qb->getQuery()->execute();
+</b>
+
+Cependant, toutes les autres méthodes que je viens de voir ne sont en fait que des raccourcis vers cette méthode <b>execute()</b>,
+en changeant juste le mode d'hydratation des résultats (objet, tableau, etc.).
+
+<b>
+// Voici deux méthodes strictement équivalentes :
+$results = $query->getArrayResult();
+// Et : 
+$results = $query->execute(array(), Query::HYDRATE_ARRAY);
+
+// Le premier argument de execute() est un tableau de paramètres
+// Je peux aussi passer la méthode setParameter(), au choix
+
+// Le deuxième argument de execute() est ladite méthode d'hydratation
+</b>
+
+Il faut donc penser à bien choisir ma façon de récupérer les résultats à chacune de mes requêtes.
+
+<h3>4.) Utilisation du Doctrine Query Language</h3>
+
+Le DQL est une sorte de SQL adapté à l'ORM Doctrine2. Il permet de faire des requêtes un peu à l'ancienne, en écrivant une requête
+en chaîne de caractères (en opposition au QueryBuilder).
+
+Pour écrire une requête en DQL, il faut donc oublier le QueryBuilder, on utilisera seulement l'objet Query. Et la méthode pour 
+récupérer les résultats sera la même. Le DQL n'a rien de compliqué, et il est très bien documenté (pour voir la docu, cliquer 
+<a href="http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/dql-doctrine-query-language.html" target="_blank">
+ici</a>).
+
+<h4>a./ La théorie</h4>
+
+Pour créer une requête en utilisant du DQL, il faut utiliser la méthode <b>createQuery()</b> de l'EntityManager :
+
+<b>
+// depuis un repository
+public function myFindAllDQL() {
+	$query = $this->_em->createQuery('SELECT a FROM OCPlatformBundle:Advert a');
+	$resulsts = $query->getResult();
+	
+	return $results;
+}
+</b>
+
+Expliquons cette requête : 
+Tout d'abord, on n'utilise pas de table. On a bien dit qu'on pensait objet et non plus base de données ! Il faut donc utiliser dans
+les FROM et les JOIN le nom des entités. Soit en utilisant le nom raccourci comme on l'a fait, soit le namespace complet de l'entité.
+De plus, il faut toujours donner un alias à l'entité, ici on a mis "a". On met souvent la 1re lettre de l'entité, même si ce n'est
+absolument pas obligatoire.
+
+Ensuite, il va de soi que le fait de sélectionner ainsi l'objet (désigné par son alias) ne laisse aucun de ses attributs derrière, 
+ils auront donc tous leur valeur correspondante. C'est l'équivalent d'une étoile (*) en SQL donc. 
+
+Note: Il faut tout de même savoir qu'il est possible de ne sélectionner qu'une partie de l'objet, en faisant <b>"a.title"</b> par
+exemple. Mais je ne reçois alors qu'un tableau contenant tous les attributs sélectionnés, et non un objet. Je ne peux donc pas
+modifier/supprimer/etc. l'objet, puisque c'est un tableau. Cela sert dans des requêtes particulières, mais la plupart du temps
+on sélectionnera bien tout l'objet. 
+
+Faire des requêtes en DQL n'a donc rien de compliqué. Lorsque je les fais, j'ai intérêt à garder sous la main la docu sur le
+<a href="http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/dql-doctrine-query-language.html" target="_blank">
+DQL</a> pour en connaître la syntaxe. En attendant, je vais voir quelques exemples afin d'avoir une idée globale du DQL. 
+
+Note : Pour tester rapidement mes requêtes DQL sans avoir à les implémenter dans une méthode de mon repository, Doctrine2 me simplifie 
+la vie grâce à la commande suivante :
+
+<b>
+doctrine:query:dql
+</b>
+
+Cela me permet de faire quelques tests afin de construire ou de vérifier mes requêtes, à utiliser sans modération donc !
+Pour faire un test, je peux utliser dès maintenant la commande :
+
+<b>
+php bin/console doctrine:query:dql "SELECT a FROM OCPlatformBundle:Advert a"
+</b>
+
+<h4>b./ Exemples</h4>
+
+Pour faire une jointure :
+
+<b>
+SELECT a, u FROM OCPlatformBundle:Advert a JOIN a.user u WHERE u.age = 25
+</b>
+
+Pour utiliser une fonction SQL (attention, toutes les fonctions  SQL ne sont pas implémentées en DQL) :
+
+<b>
+SELECT a FROM OCPlatformBundle:Advert a WHERE TRIM(a.author) = 'Alexandre'
+</b>
+
+Pour sélectionner seulement un attribut (attention les résultats seront donc sous forme de tableaux et non d'objets) :
+
+<b>
+SELECT a.title FROM OCPlatformBundle:Advert a WHERE a.id IN(1, 3, 5)
+</b>
+
+Et bien sûr je peux également utiliser des paramètres :
+
+<b>
+public function myFindDQL($id) {
+	$query = $this->_em->createQuery('SELECT a FROMOCPlatformBundle:Advert a WHERE a.id = :id');
+	$query->setParameter('id', $id);
+	
+	// Utilisation de getSingleResult() car la requête ne doit retourner qu'un seul résultat.
+	return $query->getSingleResult();
+}
+</b>
+
+<h2>IV./ Utiliser les jointures dans mes requêts</h2>
+<h3>1.) Pourquoi utiliser les jointures ?</h3>
+
+Lorsque j'utilise la syntaxe <b>$entiteA->getEntiteB()</b>, Doctrine exécute une requête afin de charger les entités B qui sont liés
+à l'entité A.
+
+L'objectif est donc de maîtriser quand charger juste l'entité A, et quand charger l'entité A avec ses entités B liées (lorsque nous
+sommes certains d'en avoir besoin). J'ai déjà vu le premier cas, par exemple un <b>$repositoryA->find($id)</b> ne récupère qu'une
+seule entité A sans récupérer les entités liées. Maintenant, voyons comment réaliser le deuxième cas, ie récupérer tout d'un coup
+avec une jointure, pour éviter une seconde requête par la suite.
+
+Tout d'abord, rappelons le cas d'utilisation principal de ces jointures. C'est surtout lorsque je veux boucler sur une liste
+d'entités A (par exemples des annonces), et que dans cette boucle je fais des <b>$entiteA->getEntiteB()</b> (par exemple des
+candidatures). Avec une requête par itération dans la boucle, j'explose mon nombre de requêtes sur une seule page ! C'est donc 
+principalement pour éviter cela que je vais faire des jointures.
+
+<h3>2.) Comment faire des jointures avec le QueryBuilder ?</h3>
+
+Heureusement, c'est très simple :
+
+Réf <b>AdvertRepository.php => getAdvertWithApplications()</b>
+
+Rien d'extravagant donc ! Voici l'idée un peu plus en détails :
+
+	-	D'abord on crée une jointure avec la méthode <b>leftJoin()</b> (ou <b>innerJoin()</b> pour faire l'équivalent d'un 
+		<b>INNER JOIN</b>). Le 1er argument de la méthode est l'attribut de l'entité principale (celle qui est dans le FROM de la
+		requête) sur lequel faire la jointure. Dans l'exemple, <b>Advert</b> possède un attribut <b>applications</b> (<b>_applications
+		</b> dans mon cas). Le 2e argument de la méthode est l'aliasde l'entité jointe (arbitraire).
+	-	Puis on sélectionne également l'entité jointe, via un <b>andSelect()</b>. En effet, un <b>select('app')</b> tout court aurait
+		écraséle <b>select('a')</b> déjà fait par le <b>createQueryBuilder()</b>.
+		
+Attention: On ne peut faire de jointure que si l'entité du <b>FROM</b> possède un attribut vers l'entité à joindre ! Cela veut dire
+que soit l'entité du <b>FROM</b> est l'entité propriétaire de la relation, soit la relations est bidirectionnelle. 
+Dans mon exemple, Advert n'est pas l'entité propriétaire, mais la relation est bidirectionnelle, et donc on peut effectuer une telle
+jointure.
+
+QUESTION : Et pourquoi  n'a-t-on pas précisé la condition "ON" du JOIN ? 
+
+Eh bien, ce "ON" dans les requêtes SQL sert à indiquer à ma SGBDR  sur quelle condition effectuer la jointure. Or ici, on s'adresse
+à Doctrine et non directement à MySQL. Et bien entendu, Doctrine connaît déjà tout sur mon association, grâce aux annotations !
+Il est donc inutile de lui préciser le <b>ON</b>. 
+
+Bien sûr, je peux toujours personnaliser la condition de jointure, en <em>rajoutant</em> mes conditions à la suite du <b>ON</b> 
+généré par Doctrine, grâce à la syntaxe du <b>WITH</b> :
+
+<b>
+$qb->innerJoin('a.applications', 'app', 'WITH', 'YEAR(app.date) > 2013');
+</b>
+
+Le 3e argument est le type de condtion <b>WITH</b>, et le 4e est ladite condition.
+
+Note : Concernant "WITH"... En SQL, la différence entre le <b>ON</b> et le <b>WITH</b> est simple : le <b>ON</b> <em>définit</em> la
+condition pour la jointure, alors qu'un <b>WITH</b> <em>ajoute</em> une condition pour la jointure. Attention, en DQL le <b>ON</b>
+n'existe pas, seul le <b>WITH</b> est supporté. Ainsi, la syntaxe précédente serait équivalente à la syntaxe SQL suivante à base
+de <b>ON</b> :
+
+<b>
+SELECT *
+FROM oc_advert a
+INNER JOIN oc_application app ON (app.advert_id = a.id AND YEAR(app.date) > 2013)
+</b>
+
+Grâce au <b>WITH</b>, on n'a pas besoin de réécrire la condition par défaut de la jointure, le <b>app.advert_id = a.id</b>.
+
+<h3>3.) Comment utiliser les jointures ?</h3>
+
+Réponse : comme d'habitude ! Je n'ai rien à modifier dans mon code (contrôleur, vue). Si j'utilise une entité dont j'ai récupéré
+les entités liées avec une jointure, je peux alors utiliser les getters joyeusement sans craindre de requête supplémentaire.
+Reprenons, l'exemple de la méthode <b>getAdvertWithApplications()</b> définie précédemment, on pourrait utiliser les résultats comme
+ceci :
+
+Réf <b>AdvertController.php</b>
+
+Voici donc comment je devrai faire la plupart de mes requêtes. En effet, j'aurai souvent besoin  d'utiliser des entités liées
+entre elles, et faire une ou plusieurs jointures s'impose très souvent !
+
+<h2>V./ Application: les repositories de ma platforme d'annonces</h2>
+<h3>1.) Plan d'attaque</h3>
+
+Dans un premier temps, je vais ajouter une méthode dans l'AdvertRepository pour récupérer toutes les annonces qui correspondent à
+une liste de catégories. Par exemple, on veut toutes les annonces dans les catégories Développeur et Intégrateur. La déclaration
+de la méthode est donc :
+
+<b>
+public function getAdvertWithCategories(array $categoryNames);
+</b>
+
+Et on pourra l'utiliser comme ceci par exemple :
+
+<b>
+$repository->getAdvertWithCategories(array('Développeur', 'Intégrateur'));
+</b>
+
+Dans un 2e temps, je vais créer une méthode dans l'ApplicationRepository pour récupérer le X dernières candidatures avec leur
+annonce associée. La déclaration de la méthode sera comme ceci :
+
+<b>
+public function getApplicationsWithAdvert($limit);
+</b>
+
+Le paramètre <b>$limit</b> étant le nombre de candidature à retourner.
+
+ Réf <b>AdvertRepository.php => getAdvertWithCategories(array $categoryNames)</b>
+ Réf <b>ApplicationRepository.php</b>
+ 
+<h3>En résumé :</h3> 
+
+	-	Le rôle d'un repository est, à l'aide du langage DQL ou du constructeur de requêtes, de récupérer des entités selon selon
+	des contraintes, des tris, etc.
+	-	Un repository dispose toujours de quelques méthodes de base, permettant de récupérer de façon très simple les entités.
+	-	Mais la plupart du temps, il faut créer des méthodes personnelles pour récupérer les entités exactement comme on veut.
+	-	Il est indispensable de faire les bonnes jointures afin de limiter aux maximum le nombre de requêtes SQL sur mes pages.
+	-	Le code du cours à ce stade sur github : 
+		<a href="https://github.com/winzou/mooc-symfony/tree/iteration-11" target="_blank">branche itération-11</a>.
+		
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

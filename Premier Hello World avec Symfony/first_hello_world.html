@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Mon premier Hello world avec Symfony</title>
+</head>
+<body>
+<pre>
+                                                   Mon premier "Hello World" avec Symfony
+                                                   
+L'objectif de ce chapitre est de créer de toutes pièces ma première page avec Symfony : une simple page blanche comprenant un "Hello World !".
+
+Il s'agira ici surtout d'avoir une vision globale de la création d'une page.
+
+<h3>
+I./ Création de ma route
+</h3>
+Je travaille dans mon bundle OCPlatformBundle, je me place donc dans son répertoire :
+
+<strong>src/OC/PlatformBundle</strong>
+
+Pour créer une page, il faut d'abord définir l'URL à laquelle elle sera accessible. Pour cela, il faut créer la route de cette page.
+
+1.) Le routeur, une route
+<strong>Objectif</strong>
+
+Le rôle du routeur est de trouver la bonne route qui correspond à l'URL appelée, et de retourner les paramètres de cette route.
+
+Réf routeur_route.png
+
+Je ne toucherai ni au noyau, ni au routeur: je m'occuperai juste des routes.
+
+a./ Je crée mon fichier de routes
+
+Les routes se définissent dans un simple fichier texte, que Symfony a déjà généré pour mon OCPlatformBundle. Généralement, on nomme 
+ce fichier:
+
+<strong>Resources/config/routing.yml</strong>
+
+...dans le répertoire du bundle. J'ouvre le fichier, et je rajoute cette route à la suite de celle qui existe déjà:
+
+# src/OCPlatformBundle/Resources/config/routing.yml
+
+hello_the_world:
+    path:      /hello-world
+    defaults:  { _controller:OCPlatformBundle:Advert:index }
+    
+
+Je viens de créer ma propre route !
+
+Attention : l'indentation se fait avec 4 espaces par niveau, <em>et non avec des tabulations !</em> Cela m'évitera une belle erreur. Cela est
+valable pour tous mes fichiers YAML (.yml)
+
+Attention2 : Il semble y a avoir des erreurs lors des copier-coller depuis le tutoriel vers les fichiers .yml. Si je rencontre une obscure
+erreur, il faut penser à définir l'encodage du fichier en "UTF-8 sans BOM" et à supprimer les éventuels caractères non désirés. C'est un
+bug étrange qui provient du site openclassrooms, mais dont on ne connaît pas l'origine. Il vaut donc mieux recopier le code "à la main".
+
+Essayons de comprendre rapidement cette route : 
+
+	-	hello_the_world : est le <strong>nom</strong> de la route. Il est assez arbitraire, et me permet juste de m'y retrouver par la suite. La
+			seule contrainte est qu'il soit unique
+	-	path : correspond à <strong>l'URL</strong> à laquelle je souhaite que mon "Hello World !" soit accessible.
+	-	defaults : correspond aux <strong>paramètres</strong> de la route, dont :
+			=> _controller : qui correspond à <strong>l'action</strong> que l'on veut exécuter et au <strong>controlleur</strong> (ici, 
+					"Advert") que l'on va appeler
+
+Découpons la valeur donnée à <strong>_controller</strong> : 
+
+<strong>OCPlatformBundle:Advert:index</strong> : Cette valeur se découpe en suivant les deux-points (":") 
+			==> "OCPlatformBundle" est le nom de mon bundle, celui dans lequel Symfony2 ira chercher le contrôleur
+			==> "Advert" est le nom du contrôleur à ouvrir. En terme de fichier, cela correspond à Controller/AdvertController.php dans
+					le répertoire du bundle
+			==> "index" est le nom de la méthode à exécuter au sein du contrôleur
+			
+b./ J'informe Symfony que j'ai des routes pour lui
+
+Inutile d'informer le Routeur que j'ai une nouvelle route pour lui : il le sait déjà ! En effet, comme on l'a vu au chapitre précédent, le
+fichier de routes de mon bundle est déjà inclus dans la configuration générale (grâce au fichier app/config/routing.yml). Il n'y a donc
+rien de particulier à faire ici.
+
+En fait, j'aurais pu ajouter ma route <strong>hello_the_world</strong> directement dans ce fichier app/config/routing.yml. Cela
+aurait fonctionné et sela aurait été plutôt rapide. Mais c'est oublier mon découpage en bundles ! 
+
+Cela rend mon bundle indépendant: si plus tard je rajoute, modifie ou supprime des routes dans mon bundle, je ne toucherai qu'au fichier :
+
+<strong>src/OC/PlatformBundle/Resources/config/routing.yml au lieu de app/config/routijg.yml</strong>
+
+Et voilà, il n'y a plus qu'à créer le contrôleur Advert ainsi que sa méthode index ! 
+
+<h3>
+II./ Création de mon contrôleur
+</h3>
+1.) Le rôle du contrôleur
+
+Bref, c'est ici que résidera toute la logique de mon site : si l'utilisateur est connecté et qu'il a le droit de modifier cet article, 
+alors j'affiche le formulaire d'édition des articles de blog. 
+
+2.) Je crée mon contrôleur
+
+Dans un bundle, les contrôleurs se trouvent dans le répertoire <strong>Controller</strong>. Suivant la convention, on nommera le 
+contrôleur AdvertController. Au final, je crée le fichier : 
+
+<strong>src/OC/PlatformBundle/Controller/AdvertController.php</strong>
+
+Même si Symfony a déjà créé un contrôleur DefaultController pour moi, ce n'est qu'un exemple, je vais utiliser le mien. J'ouvre donc
+mon AdvertController.php et j'y mets le code suivant :
+
+&lt;?php
+
+// src/OC/PlatformBundle/Controller/AdvertController.php
+
+namespace OC\PlatformBundle\Controller;
+
+use Symfony\Component\HttpFoundation\Response;
+
+class AdvertController {
+
+	public function indexAction() {
+		return new Response('Mon premier Hello World !');
+		
+	}
+}
+
+Pour voir le résultat, je vais sur :
+
+<strong>localhost/Symfony/web/app_dev.php/hello-world</strong> 
+
+L'argument de l'objet Response est le contenu de la page que j'envoie au visiteur, ici "Mon premier HW !". Puis, on retourne cet objet.
+On peut dire, à ce stade, que le minimum requis est atteint. Mais on va pas en rester là tout de même.
+
+Mais d'abord, un mot sur l'appelation de la méthode du contrôleur, indexAction() : c'est une convention aussi, on met le nom de l'action suivi
+du suffixe "Action", tout simplement.
+
+Mais écrire le contenu de sa page de cette manière dans le contrôleur, ce n'est pas très pratique, et en plus de cela on ne respecte
+pas le modèle MVC ! Utilisons donc les templates (ou vues) !
+
+<h3>
+III./ Création du template Twig
+</h3>
+1.) Les templates avec Twig
+
+Un moteur de templates est un script qui permet d'utiliser des templates, ie des fichiers qui ont pour but d'afficher le contenu de ma
+page HTML de façon dynamique, mais sans PHP. Comment ? Avec leur lanage à eux. Chaque moteur a son propre langage.
+
+Avec Symfony, je vais employer le moteur Twig. Voici un exemple de comparaison entre un template simple en PHP et un template en
+"langage Twig" :
+
+Réf template_php.php
+Réf template.html.twig
+
+Celui réalisé avec Twig est bien plus facile à lire et à écrire ! Pour afficher une variable, j'écris juste {{ ma_var }} au lieu
+de &lt;?php echo $ma_var; ?>
+
+Le but en fait est de faciliter le travail de mon designer. Un deseigner ne connaît pas forcément le PHP, ni forcément Twig d'ailleurs.
+Mais Twig est très rapide à prendre en main, plus rapide à écrire et à lire, et il dispose aussi de fonctionnalités très intéressantes.
+Par exemple, imaginons que mon designer veuille mettre les titres en majuscules. Il lui suffit d'écrire :
+
+{{ titre|upper }}
+
+...où titre est la variable qui contient le titre d'un artcile de blog par exemple. C'est plus joli que :
+
+&lt;?php echo strtoupper($titre); ?>
+
+Il y aura un chapitre dédié à Twig par la suite... En attendant, avançons-nous sur notre "hello world".
+
+2.) Utiliser Twig avec Symfony
+
+Comment utiliser un template Twig depuis mon contrôleur, au lieu d'afficher mon texte tout simple ?
+
+a./ Créons le fichier du template
+
+Le répertoire des templates (ou vues) d'un bundle est le dossier <strong>Resources/views</strong>. Ici encore, on ne va pas utiliser
+le template situé dans le répertoire Default généré par Symfony. Je crée mon propre répertoire Advert et j'y ajoute mon template 
+index.html.twig. J'ai donc le fichier :
+
+<strong>src/OC/PlatformBundle/Resources/views/Advert/index.html.twig</strong>
+
+Découpons ce nom "Advert/index.html.twig" : 
+
+	-	"Advert" : nom du répertoire (appelé comme le contrôleur, c'est recommandé)
+	-	"index" : nom du template qui est aussi le nom de la méthode du contrôleur (recommandé aussi)
+	-	"html" : format du contenu de mon template. Mais je serai amené à voiloir y mettre du XML ou autre : je changerai donc cette extension.
+					Cela me permet de mieux m'y retrouver
+	-	"twig" : est le format de mon template. Ici, j'utilise Twig comme moteur de templates, mais il est toujours possible d'utiliser
+					des templates PHP
+					
+Je reviens à mon template pour y mettre le code suivant :
+
+Réf index.html.twig
+
+Dans ce template, je n'ai utilisé ni variable, ni structure Twig. En fait, c'est un simple fichier contenant du HTML pur.
+
+b./ Appelons ce template depuis le contrôleur
+
+Il ne reste plus qu'à appeler ce template depuis le contrôleur, dans la méthode indexAction().
+
+Pour accéder aux méthodes de gestion des templates, je vais faire hériter mon contrôleur du contrôleur de base de Symfony, qui apporte 
+quelques méthodes pratiques dont je me servirai tout au long de ce cours.
+
+Ensuite, la méthode concrète que j'utilise pour récupérer le contenu d'un template est la méthode suivante :
+
+<strong>$this->get('templating')->render('OCPlatformBundle:Advert:index.html.twig')</strong>
+
+Cette méthode prend en paramètre le nom du template et retourne le contenu du template. Voici le contrôleur modifié en conséquence :
+
+Réf AdvertController.php
+
+J'ai simplement hérité le contrôleur de base, et rajouté la ligne 11 pour récupérer le contenu du template. 
+
+La convention pour le nom du template est la même que pour le nom du contrôleur : 
+
+<strong>NomDuBundle:NomDuContrôleur:NomDeLAction</strong>
+
+Puis, j'ai adapté la création de l'objet Response pour lui passer ma nouvelle variable $content à la place de mon "Helo world".
+
+Note : $this->get('templating'), what is it ? Cette syntaxe $this->get('mon_service') depuis le contrôleur retourne un objet dont le nom est
+"mon_service", cet objet permet ensuite d'effectuer quelques actions. Par exemple, ici l'objet "templating" permet de récupérer le 
+contenu d'un template grâce à sa méthode render().
+Ces objets, appelés services, sont une fonctionnalité phare de Symfony,que j'étudierai très en détails dans la prochaine partie de
+ce cours.
+
+A présent, lorsque je vais sur http://localhost/Symfony/web/app_dev.php/hello-world, j'ai une jolie page qui s'affiche, avec même une toolbar
+en bas.
+
+Note : Si j'ai des problèmes d'accent, je dois faire attention à bien définir l'encodage de mes templates en UTF-8 sans BOM.
+
+Pour m'amuser un peu avec les variables Twig, je peux modifier le contrôleur pour rajouter un deuxième argument à la méthode render(),
+un tableau contenant le nom des variables (ici, "nom") et leur valeur (ici, "Moto"). Puis, je modifie mon template en remplaçant la balise 
+h1 par la suivante :
+
+<strong>&lt;h1>Hello {{ nom }}&lt;/h1></strong>
+
+On verra le passage de variables plus en détail dans le chapitre dédié à Twig.
+
+<h3>
+IV./ Mon objectif: créer une plateforme d'annonces
+</h3>
+1.) Le fil conducteur
+
+Je construirai une plateforme d'annonces tout au long de ce cours. Cela me permet d'utiliser des exemples cohérents entre eux et de voir 
+comment construire un tel site de toutes pièces. Et je pourrai adapter ces exemples à mon propre projet.
+
+2.) Ma plateforme
+
+La plateforme que je vais créer est très simple. En voici les grandes lignes : 
+
+	-	J'aurai des annonces (<em>advert</em> en anglais) de mission : développement d'un site internet, création d'une maquette, intégration
+			HTML, etc.
+	-	Je pourrai consulter, créer, modifier et rechercher des annonces
+	-	A chaque annonce, on pourra lier une image d'illustration
+	-	A chaque annonce, on pourra lier plusieurs candidatures (<em>application</em> en anglais)
+	-	On aura plusieurs cataégories (Développement, Graphisme, etc.) qui seront liés aux annonces. Je pourrai créer , modifier ou supprimer
+			ces catégories
+	-	A chaque annonce, je pourrai enfin lier des niveaux de compétence requis (Expert en PHP, maîtrise en Photoshop, etc.)
+	-	Au début, je n'aurai pas de système de gestion des utilisateurs : je devrai saisir mon nom lorsque je rédigérai une annonce. Puis,
+			je rajouterai une couche utilisateur
+			
+3.) Un peu de nettoyage
+
+Avec tous les éléments générés par Symfony lors de la création du bundle et les miens, il y a un peu de redondance. Je peux donc
+supprimer tous les éléments suivants : 
+
+	-	Le contrôleur <strong>Controller/DefaultController.php</strong>
+	-	Le répertoire des vues <strong>Resources/views/Default</strong>
+	-	La route <strong>oc_platform_homepage</strong> dans <strong>Resources/config/routing.yml</strong>
+	
+Je supprime également tout ce qui concerne le bundle <strong>AppBundle</strong>, un bundle de démonstration intégré dans la 
+distribution standard de Symfony2 et dont je ne me servirai pas :
+
+	-	Le répertoire <strong>src/AppBundle</strong>
+	-	La ligne activant le bundle AppBundle au sein du fichier <strong>app/AppKernel</strong>
+	-	Au sein du fichier <strong>app/config/routing.yml</strong>, les lignes qui importent le fichier de route du bundle AppBundle 
+			(ie <strong>app: resource: "@AppBundle/Controller/" type: annotation</strong>)
+			
+4.) Schéma de développement sous Symfony
+
+Si je rafraîchis la page pour vérifier que tout est bon, il est possible que j'obtienne une erreur ! En effet, il faut prendre  dès 
+maintenant un réflexe Symfony : <strong>vider le cache</strong>. Car Symfony, pour m'offrir autant de fonctionnalités et être 
+aussi rapide, utilise beaucoup son cache. 
+
+Le cache est constitué de ficheir PHP prêts à être exécutés, contenant tout le nécessaire pour faire touner Symfony sous une forme
+plus rapide. Il faut penser à la configuration dans les fichiers YAML : quand Symfony génère une page, il va compiler cette configuration
+dans un tableau PHP(un array), ce qui sera bien plus rapide à charger la fois suivante.
+
+Or après certaines modifications le cache peut ne plus être à jour, ce qui peut entrainer des erreurs.
+Dans ce cas de figure : 
+	-	En mode "prod", c'est simple. Symfony ne regénère <strong>jamais</strong> le cache. Cela lui permet de ne faire aucune 
+			vérification sur la validité du cache (ce qui prend du temps), et de servir les pages très rapidement aux visiteurs. La
+			solution: vider le cache à la main <em>à chaque fois</em> que je fais des changements. Cela se fait grâce à la commande
+			suivante : <strong>php bin/console cache:clear --env=prod</strong>
+	-	En mode "dev", c'est plus compliqué. Lorsque je modifie mon code, Symfony reconstruit une bonne partie du cache à la prochaine
+			page que je charge. Donc pas forcément besoin de vider le cache. Seulement, comme il ne reconstruit pas tout, il peut parfois
+			apparaître des bugs un peu étranges. Dans ce cas, un petit <strong>php bin/console cache:clear</strong> résout le problème
+			en trois secondes !
+
+Attention: parfois, il se peut que la commande cache:clear génère des erreurs lors de son exécution. Dans ce cas, il faut essayer de relancer
+la commande, parfois une deuxième passe peut résoudre les problèmes. Dans le cas contraire, je dois supprimer le cache à la main en 
+supprimant simplement le répertoire <strong>var/cache/dev</strong> (ou <strong>var/cache/prod</strong> suivant l'environnement).
+
+Typiquement, un schéma classique de développement est le suivant : 
+
+	-	Je fais des changements, je teste;
+	-	Je fais des changements, je teste;
+	-	Je fais des changements, je teste: ça ne marche pas, je vide le cache: ça marche;
+	-	Je fais des changements, je teste;
+	-	Je fais des changements, je teste;
+	-	Je fais des changements, je teste: ça ne marche pas, je vide le cache: ça marche;
+	-	...
+	-	En fin de journée, j'envoie tout sur le serveur de production, je vide obligatoirement le cache pour le mode prod, je teste: ça marche.
+	
+Evidemment, quand je dis "ça ne marche pas", j'entends "ça devrait marcher, l'erreur rencontrée est étrange". Si je fais une erreur dans mon
+propre code, ce n'est pas un <strong>cache:clear</strong> qui réglera le problème.
+
+5.) Une dernière chose
+
+Dans les prochains chapitre, je vais approfondir tout ce que je viens de voir dans ce chapitre.
+
+Lorsque je crée une deuxième page, tout n'est pas forcément à refaire. Par exemple, pour finir en beauté, je vais créer une autre page
+<strong>byebye-world</strong>.
+
+<h3>
+En résumé :
+</h3>
+Le rôle du routeur est de déterminer quel route utiliser pour la requête courante.
+Le rôle d'une route est d'associer une URL à une action du contrôleur.
+Le rôle du contrôleur est de retourner au noyau un objet <strong>Response</strong>, qui contient la réponse HTTP à envoyer au visiteur (page
+HTML ou redirection).
+Le rôle des vues est de mettre en forme les données que le contrôleur lui donne, afin de construire une page HTML, un flux RSS, un e-mail, etc.
+
+</pre>
+</body>
+</html>

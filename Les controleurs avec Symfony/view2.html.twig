@@ -1,0 +1,21 @@
+{# src/OC/PlatformBundle/Resources/views/Advert/view.html.twig #}
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Affichage de l'annonce n° {{ id }}</title>
+	</head>
+	<body>
+		<h1>Affichage de l'annonce N°{{ id }}</h1>
+		<div>
+			{# On affiche tous les messages flash dont le nom est "info" #}
+			{% for message in app.session.flashbag.get('info') %}
+				<p>Message flash : {{ message }}
+			{% endfor %}
+		</div>
+		
+		<p>
+			Lecture de l'annonce ayant pour id : {{ id }}<br />
+		</p>
+	</body>
+</html>

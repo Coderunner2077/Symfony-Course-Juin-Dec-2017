@@ -1,0 +1,43 @@
+{# src/CoreBundle/Resources/views/Core/index.html.twig #}
+{% extends 'CoreBundle::layout.html.twig' %}
+{% block title %}
+	Accueil - {{ parent() }}
+{% endblock %}
+
+{% block body %}
+<h1>Bienvenue. Ce site vous permet de publier vos annonces, ou bien consulter les annonces qui vous intéressent.</h1>
+
+Pour ne pas accéder au forum, cliquer <a href="/">ici</a>
+<div class="row">
+	<p class="col-xs-6">Voici un aperçu des trois articles les plus récents 
+	<ul>
+		{% for advert in listAdverts %}
+			<li>
+				<a href="{{ path('oc_platform_view', {'id': advert.id}) }}">
+					{{ advert.title }}
+				</a>
+				par {{ advert.author }}
+				le {{ advert.date|date('d/m/Y') }}
+			</li>
+		{% else %}
+			<li>Pas (encore !) d'annonces</li>
+		{% endfor %}			
+	</ul>
+</p>
+<p lass="col-xs-6">Et enfin, voici un aperçu des trois derniers messages du murof
+	<ul>
+		{% for message in messagesForum %}
+			<li>
+				<a href="{{ path('oc_platform_view', {'id': message.id}) }}">
+					{{ message.title }}
+				</a>
+				par {{ message.author }}
+				le {{ message.date|date('d/m/Y') }}
+			</li>
+		{% else %}
+			<li>Pas (encore !) d'annonces</li>
+		{% endfor %}			
+	</ul>
+</p>
+</div>
+{% endblock %}

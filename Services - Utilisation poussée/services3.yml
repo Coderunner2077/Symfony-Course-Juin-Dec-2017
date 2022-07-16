@@ -1,0 +1,10 @@
+# src/OC/PlatformBundle/Resources/config/services.yml
+
+services:
+    oc_platform.antispam:
+        class: OC\PlatformBundle\Antispam\OCAntispam
+        arguments:
+            - "@mailer"
+            - 50
+        calls:
+            - [ setLocale, [ '%locale%'] ]

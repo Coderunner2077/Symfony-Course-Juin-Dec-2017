@@ -1,0 +1,7 @@
+# app/config/routing.yml
+
+oc_platform:
+    resource: "@OCPlatformBundle/Resources/config/routing.yml"
+    prefix: /{_locale}/platform
+    requirements: 
+        _locale: en|fr

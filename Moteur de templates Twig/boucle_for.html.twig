@@ -1,0 +1,15 @@
+<ul>
+	{% for membre in liste_membres %}
+		<li>{{ membre.pseudo }}</li>
+	{% else %}
+		<li>Pas d'utilisateur trouvé</li>
+	{% endfor %}
+</ul>
+
+Et pour avoir accès aux clés du tableau : <br />
+
+<select>
+	{% for index, option in liste_membres %}
+	<option value="{{ index }}">{{ option }}</option>
+	{% endfor %}
+</select>

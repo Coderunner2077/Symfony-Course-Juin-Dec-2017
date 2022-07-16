@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Les services, théorie et création</title>
+</head>
+<body>
+                                                          <h2>Les services, théorie et création</h2>
+                                                          
+Les services sont utilisés partout dans Symfony, et sont une fonctionnalité incontournable pour commencer à développer sérieusement un
+site internet sous Symfony.
+
+Il s'agira ici surtout de théorie. Je verrai dans un chapitre prochain l'utilisation plus poussée des services.
+
+<h3>
+I./ POurquoi utiliser les services
+</h3>
+1.) Genèse
+
+Une application est en réalité un moyen de faire travailler tous ses objets ensemble, et de profiter du meilleur de chacun d'eux. 
+
+L'objectif de ce chapitre est de me présenter le conteneur de services. Chaque objet est défini en tant que service, et le conteneur de
+services permet d'instancier, d'organiser et de récupérer les nombreux services de mon application. Etant donné que tous les objets
+fondamentaux de Symfony utilisent le conteneur de services, je vais apprendre à m'en servir. C'est une des fonctionnalités incontournables
+de Symfony, et c'est ce qui fait sa grande flexibilité.
+
+2.) Qu'est-ce qu'un service ?
+
+Un service est simplement un objet PHP qui remplit une fonction, associé à une configuration.
+
+Cette fonction peut être simple: envoyer des e-mails, vérifier qu'un texte n'est pas un spam, etc. Mais elle peut aussi être bien
+plus complexe : gérer une base de données (le service Doctrine !), etc.
+
+Un service est donc un objet PHP qui a pour vocation d'être accessible depuis n'importe où dans mon code. POur chaque fonctionnalité
+dont j'aurai besoin dans toute mon application, je pourrai créer un ou plusieurs services (et donc une ou plusieurs classes et 
+leur configuration). Il faut bien comprendre cela : un service est avant tout une simple classe.
+
+Quant à la configuration d'un service, c'est juste un moyen de l'enregistrer dans le conteneur de services. On lui donne un nom, on
+précise quelle est sa classe, et ainsi le conteneur a la carte d'identité du service.
+
+Prenons par exemple l'envoi d'e-mails. Dans Symfony il existe le composant SwiftMailer qui permet de gérer les e-mails. Ce composant
+contient une classe nommée <strong>Swift_Mailer</strong> qui envoie effectivement des e-mails. Symfony qui intègre le composant
+SwiftMailer, définit déjà cette classe en tant que service <strong>mailer</strong> grâce à un peu de configuration. Le conteneur de 
+service de Symfony peut donc accéder à la classe <strong>Swift_Mailer</strong> grâce au service <strong>mailer</strong>.
+
+Le concept de service est un bon moyen d'éviter d'utiliser trop souventà mauvais escient le pattern singleton.
+
+3.) L'avantage de la propgrammation orientée services
+
+L'avantage de régléchir sur les services est que cela force à bien séparer chaque fonctionnalité de l'application. Comme chaque service
+ne remplit qu'une seule et unique fonction, ils sont facilement réutilisables. Et je peux surtout facilement les développer, les tester et 
+les configurer puisqu'ils sont assez indépendants. Cette façon de programmer est connu sous le nom de d'<strong>architecture orientée 
+services</strong>, et n'est pas spécifique à Symfony, ni à PHP.
+
+4.) Le conteneur de services
+
+Mais alors donc, si un service est juste une classe, pourquoi appeler cela un service ? Et pourquoi utiliser les services ?
+
+L'intérêt réel des services réside dans leur association avec le conteneur de services. Ce conteneur de services (<em>services contaiener</em> 
+en  anglais) est une sorte de super-objet qui gère tous les services. Ainsi, pour accéder à un service, il faut passer par le conteneur.
+
+Le rôle du conteneur est d'organiser et d'instancier mes services très facilement. L'objectif est de simplifier au maximum la récupération
+des services depuis mon code à moi (depuis le contrôleur ou autre). Je demande au conteneur un certain service en l'appelant par son nom, et
+le conteneur s'occupe de tout pour me retourner le service demandé. 
+
+La figure suivante montre le rôle du conteneur de services et son utilisation. L'exemple est constitué de deux services, sachant que le
+<strong>Service1</strong> nécessite le <strong>Service2</strong> pour fonctionner, il faut donc qu'il soit instancié après ce dernier.
+
+Réf conteneur_services.png
+
+Si l'on devait écrire en PHP les grandes lignes de ce conteneur de services pour l'exemple, voici ce que cela donnerait (ceci est un 
+code fictif) :
+
+Réf Container.php
+
+Donc, le principe est le suivant : lorsqu'un service a déjà été instancié une fois, le conteneur ne réinstancie pas le service à nouveau: il
+retourne l'instance précédemment créée. Et aussi, si ce service a besoin d'un autre service pour être instancié, le conteneur instancié 
+celui-ci en premier.
+
+C'est ainsi que fonctionne le conteneur de services de Symfony. 
+
+D'ailleurs, je peux le vérifier en ouvrant le fichier <strong>var/cache/dev/appDevDebugProjectContainer.php</strong>. Ce fichier est
+trop gros, mais regardons la méthode <strong>getTemplatingService()</strong> qui permet de récupérer le moteur de template. 
+La voici cette méthode (que l'on appelait en réalité en faisant $this->get('templating')) :
+
+                                                          ______________________________________
+                                                          
+public function getTemplatingService() {
+
+	return $this->service['templating'] = new \Symfony\Bundle\TwigBundle\TwigEngine(
+		$this->get('twig'),
+		$this->get('templating.name_parser'),
+		$this->get('templating.locator')
+	);
+}
+                                                                   __________________
+                                                                   
+On peut facilement en déduire que les dépendances du service <em>templating</em> sont : <em>twig, templating.name_parset</em> et
+<em>templatgin.locator</em>
+
+Remarque : mes tests et observations m'ont montré que contrairement à ce qui est dit, ce n'est pas la même instance qui est retournée par
+la fonction getTemplatingService() mais une nouvelle instance. 
+
+Remarque2 : Mais le conteneur, à travers sa méthode get('nom_du_service'), n'appelle cette méthode que dans le cas où le service demandé 
+n'est pas déjà défini dans le tableau $this->services.
+
+Ce fichier étant dans le répertoire cache, il est écrasé à chaque fois qu'on vide le cache. Ce conteneur de services n'est donc pas
+figé et dépend en réalité de ma configuration. Par exemple, pour ce service <em>templating</em>, si jamais ma configuration enlève
+ou ajoute une dépendance, il faut bien que le conteneur de services reflète ce changement: il sera donc regénéré après mon changement.
+
+5.) Définir les dépendances entre services
+
+Passons maintenant à la configuration des services. Comment dire au conteneur que le Service2 doit être instancié avant le Service2 ? Cela
+se fait grâce à la configuration dans Symfony.
+
+L'idée est de définir pour chaque service : 
+
+	-	Son nom, qui permettra de l'identifier au sein du conteneur
+	-	Sa classe qui permettra au conteneur d'instancier le service
+	-	Les arguments dont il a besoin. Un argument peut être un autre service, mais aussi un paramètre (défini dans le fichier 
+		<strong>parameters.yml</strong> par exemple)
+		
+Je vais voir la syntaxe de la configuration d'ici peu.
+
+6.) Le partage des services
+
+Il reste un dernier point à savoir avant d'attaquer la pratique. Dans Symfony, chaque service est "partagé". Cela signifie simplement
+que la classe du service est instanciée une seule fois (à la première récupération du service) par le conteneur. Si, plus tard dans 
+l'exécution de la page, je veux récupérer le même service, c'est cette même instance que le conteneur retournera par la suite.
+
+Ce partage permet de manipuler très facilement les services tout au long de la requête.
+Concrètement, c'est le même objet <strong>$service1</strong> (par exemple) qui sera utilisé dans tout mon application.
+
+<h3>
+II./ Utiliser un service en pratique
+</h3>
+1.) Récupérer un service
+
+Je vais continuer sur mon exemple d'e-mail. Comme je l'ai mentionné, il existe dans Symfony un composant appelé  <em>SwiftMailer</em>,
+qui permet d'envoyer des e-mails simplement. Il est présent par défaut dans Symfony, sous forme de service Mailer. Ce service est
+déjà créé, et sa configuration déjà faite, il ne reste plus qu'à l'utiliser !
+
+Pour accéder à un service déjà enregistré, il suffit d'utiliser la méthode <strong>get($nomDuService)</strong> du conteneur. Par exemple :
+
+                                                        ___________________________________
+                                                        
+$service = $container->get('mailer');
+                                                                ----------------
+                                                                
+Note : pour avoir la liste des services disponibles, il faut utiliser la commande <strong>php bin/console debug:container</strong>.
+
+Dans le cas des contrôleurs, le container est disponible dans l'attribut $container. Depuis un contrôleur, on peut donc $ecrire ceci :
+
+                                                        ___________________________________
+                                                        
+$this->container->get('mailer');
+                                                                ----------------         
+                                                                
+Voici en contexte ce que cela donne : 
+
+                                                        ___________________________________
+                                                        
+// dans le contrôleur AdvertController
+
+public function indexAction() {
+
+	$mailer = $this->container->get('mailer');
+	
+	// Ayant accès à ce service, je peux donc envoyer des mails, etc.
+}
+
+                                                                ----------------  
+Note : j'ai déjà utilisé une autre syntaxe pour récupérer un service depuis un contrôleur : l'utilisation de $this->get() sans passer
+par l'attribut $container. En fait, $this->get() est un raccourci (méthode appelant $this->container-get()) pour $this->container->get().
+Donc, ces deux méthodes sont strictement équivalentes.
+
+Voilà donc comment on utiliser un container de services depuis un contrôleur.
+
+<h3>
+III./ Créer un service simple
+</h3>
+1.) Création de la classe du service
+
+Maintenant que je sais utiliser un service, apprenons à le créer. Comme un service n'est qu'une classe, il suffit de créer un fichier
+n'importe où et de créer une classe dedans.
+
+La seule convention à respecter, de façon générale dans Symfony, c'est de mettre ma classe dans un namespace correspondant au dossier
+où est le fichier. C'et la norme <a href="https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-0.md">PSR-0</a> pour l'autoload.
+Par exemple, la classe OC\PlatformBundle\Antispam\OCAntiSpam doit se trouver dans le fichier src/OC/PlatformBundle/Antispam/OCAntispam.php.
+C'est ce qu'on fait depuis le début de ce cours.
+
+On va donc créer ici, pour suivre le fil rouge de la plateforme d'annonces, un système anti-spam. Mon besoin : détecter les spams à 
+partir d'un simple texte. Comme c'est une fonction à part entière, et qu'on aura besoin d'elle à pluseurs endroits (pour les annonces et
+pour les futurs commtaires), faisons en un service. Ce service devra être réutilisable simplement dans d'autres projets Symfony : il ne
+devra pas être dépendant d'un élément de ma plateforme.
+
+Ce service étant indépendant de ma plateforme d'annonces, il devrait se trouver dans un bundle séparé ! Un bundle AntiSpamBundle qui 
+offrirait des outis de luttre contre le SPAM. Toutefois pour rester simple  dans mon exemple, plaçons-le quand même dans mon 
+<strong>OCPlatformBundle</strong>.
+
+Je nommerai ce service "OCAntiSpam", mais je peux le nommer comme je le souhaite. Il n'y a pas de règle précise à ce niveau, mise
+à part que l'utilisation des underscores ("_") est déconseillée.
+
+Je place cette classe dans le répertoire <strong>/Antispam</strong> de mon bundle, mais je peux à vrai dire faire comme je le 
+souhaite.
+
+Je crée le fichier <strong>src/OC/PlatformBundle/Antispam/OCAntispam.php</strong>, avec ce code pour l'instant : 
+
+Réf OCAntispam.php
+
+Voilà c'est tout ce qu'il faut pour avoir un service (ici, un namespace, une classe vide). Il n'y a vraiment rien d'obligatoire, j'y 
+mets ce que je veux. Pour l'exemple, j'écris un rapide anti-spam. 
+
+Réf OCAntispam.php
+
+La seule méthode publique de cette classe est isSpam(), c'est celle que j'utiliserai par la suite. Elle retourne <strong>true</strong>
+si le message donné en argument (variable $text) est identifié en tant que spam, <strong>false</strong> sinon.
+
+2.) Création de la configuration du service
+
+Il faut maintenant signaler cette classe au conteneur de services, c'est ce qui va en faire un service en tant que tel. Un service
+se définit par sa classe ainsi que sa configuration. Pour cela, je vais utiliser le fichier 
+<strong>src/OC/PlatformBundle/Resources/config/services.yml</strong>.
+
+a./ Définition d'une classe permettant de charger le fichier services.yml
+ 
+Attention : si j'ai généré mon bundle avec le générator en répondant "oui" pour créer toute la structure du bundle, alors ce fichier 
+<strong>services.yml</strong> est chargé automatiquement. Je dois le vérifier  en confirmant que le répertoire 
+<strong>DependencyInjection</strong> de mon bundle existe. Il devrait contenir le fichier <strong>OCPlatformBundleExtension</strong>
+(nom du bundle suivi de <strong>Extension</strong>).
+
+<em>Si ce n'est pas le cas</em>, je dois créer le fichier <strong>DependencyInjection/OCPlatformExtension</strong> (j'adapte à mon 
+bundle évidemment). J'y mets le contenu suivant, qui permet de charger automatiquement le fichier <strong>services.yml</strong> que
+je vais modifier : 
+
+Réf OCPlatformExtension.php
+
+La méthode <strong>load()</strong> de cet objet est automatiquement exécutée par Symfony lorsque  le bundle est chargé. Et dans cette
+méthode, on charge le fichier de configuration <strong>services.yml</strong>, ce qui permet d'enregistrer la définition des services
+qu'il contient dans le conteneur de services. Fin de la parenthèse.
+
+b./ Configuration du fichier sevices.yml
+
+J'ouvre ou je crée (si non créé automatiquement) le fichier <strong>Resources/config/services.yml</strong> de mon bundle, j'y ajoute la
+configuration pour mon service : 
+
+                                                     _________________________________________
+                                                     
+ # src/OC/PlatformBundle/Resources/config/serices.yml
+ 
+ services:
+ 	oc_platform.antispam:
+ 		class: OC\PlatformBundle\Antispam\OCAntispam
+                                                                 ------------------
+                                                                 
+Dans cette configuration :
+
+	-	<strong>oc_platform.antispam</strong> est le nom de mon service fraîchement créé. De cette manière, le service sera
+			accéssible via $container->get('oc_platform.antispam'); Il faut essayer de respecter la convention en préfixant le nom de mes
+			services par le nom du bundle, ici "oc_platform".
+	-	class est un attribut obligatoire de ma configuration, il définit simplement le namespace complet de la classe du service. Cela
+			indique au conteneur de services quelle classe instancier lorsqu'on lui demandera le service.
+			
+			
+Et voilà, j'ai un service pleinement opérationnel.
+	
+Il existe bien sûr d'autres attributs pour affiner la définition de mon service, je le verrai dans un prochain chapitre sur les services.
+
+Le conteneur de Symfony permet de stocker aussi bien des services (des classes) que des paramètres (des variables).Pour définir un
+paramètre, la rechnique est la même que pour un service, dans le fichier<strong>services.yml</strong> : 
+
+                                                     _________________________________________
+                                                     
+ parameters:
+ 	mon_parametre: ma_valeur
+ 	
+ services:
+ 	#...
+                                                                 ------------------
+
+Et pour accéder au paramètre, la technique est la même également, sauf qu'il faut utiliser la méthode suivante :
+
+<strong>$container->getParameter('nomParamètre');</strong> au lieu de <strong>get()</strong>
+
+C'est d'ailleurs comme cela que je peux récupérer les paramètres qui sont dans le fichier <strong>app/config/parameters.yml</strong>
+comme les identifiants de ma base de données, etc. 
+
+3.) Utilisation du service
+
+Maitenant que ma classe est définie, et ma configuration déclarée, j'ai affaire à un vrai service. Voici un exemple simple de l'utilisation
+que l'on pourrait en faire : 
+
+Réf AdvertController.php
+
+Et voilà, j'ai créé et utilisé mon premier service. 
+
+<h3>
+IV./ Créer un service avec des arguments
+</h3>
+1.) Passer à la vitesse supérieure
+
+On n'a pas encore utilisé toute la puissance du conteneur de services, et notamment en ce qui concerne l'utilisation interconnectée
+des services.
+
+2.) Injecter des arguments dans mes services
+
+En effet, la plupart du temps mes services ne fonctionnent pas seuls,  et nécesssitent l'utilisation d'autres services, de paramètres
+ou de variables. Il a donc fallu trouver un moyen propre et efficace pour pallier ce problème, et c'est le conteneur de services qui
+propose la solution ! Pour passer des arguments à mon service, il faut utiliser sa configuration : 
+
+                                                     _________________________________________
+                                                     
+ # src/OC/PlatformBundle/Resources/config/services.yml
+ 
+services:
+    oc_platform.antispam:
+        class: OC\PlatformBundle\Antispam\OCAntispam
+        arguments: []          # Tableau d'arguments
+                                                                 ------------------ 
+                                                                 
+Les arguments peuvent être : 
+
+	-	Des valeurs normales en YAML (des booléens, des chaînes de caractères, des nombres, etc.)
+	-	Des paramètres (définis dans le <strong>parameters.yml</strong> par exemple) : l'identifiant du paramètre est encadré de de 
+			signes "%", ainsi ==> <strong>%nomDuParamètre%</strong> (sans guillemets apparemment ici)
+	-	Des services : l'identifiant du service est précédé d'une arobase : <strong>@nomDuService</strong> (avec des guillemets)
+	
+Pour tester l'utilisation de ces trois types d'arguments, je vais injecter différentes valeurs dans mon service d'antispam, comme ceci par
+exemple:
+
+                                                     _________________________________________
+                                                     
+# src/OC/PlateformBundle/Resources/config/services.yml
+
+services:
+    oc_plateform.antispam:
+        class: OC\PlateformBundle\Antispam\OCAntispam
+        arguments:
+            - "@mailer"
+            - %locale%
+            - 50
+                                                                 ------------------
+
+Dans cet exemple, mon service utilise : 
+
+	-	<strong>@mailer</strong> : le service Mailer (pour envoyerdes e-mails)
+	-	<strong>%locale%</strong> : le paramètre locale (pour récupérer la langue, définit  dans le fichier 
+				<strong>app/config/parameters.yml</strong>)
+	-	50 : et le nombre 50 (qu'importe son utilité !)
+	
+Une fois des arguments définis dans la configuration, il me suffit de les récupérer avec le constructeur du service. Les arguments de la
+configuration et ceux du contructeur vont donc de paire. Si j'en modifie l'un, je dois l'adapter l'autre en conséquence. 
+
+Réf OCAntispam.php
+
+L'idée du constructeur est de récupérer  les arguments pour les stocker dans les attributs de la classe afin de pouvoir les réutiliser plus
+tard. L'ordre des arguments du constructeur est le même que l'ordre des arguments définis dans la configuration du service.
+
+J'ai également modifié la méthode isSpam() pour y utiliser un argument. Si j'ai besoin de modifier la valeur de contrôle, je ne modifierai 
+que la configuration du service, sans toucher à son code !
+
+3.) L'injection de dépendances
+
+Je viens donc de réaliser quelque chose d'assez exceptionnel. En une seule ligne de configuration, je viens d'injecter un service
+dans un autre. Ce mécanisme s'appelle l'injection de dépendances (<em>dependency injection</em> en anglais).
+
+L'idée, c'est que le conteneur de services s'occupe de tout. Mon service a besoin du service <strong>mailer</strong> ? Pas de soucis,
+je le précise dans sa configuration, et le conteneur de services va prendre soin d'instancier <strong>mailer</strong>, puis de me le
+transmettre à l'instanciation de mon service à moi.
+
+Je peux bien entendu utiliser mon nouveau service dans un prochain service. Au même titre que j'ai mis <strong>@mailer</strong> en argument, 
+je pourrai mettre <strong>@oc_platform.antispam</strong> !
+
+Ainsi, lorsque je développe un service dans lequel j'aurai besoin d'un autre, je l'injecte dans les arguments de la configuration, et toute 
+la puissnance de Symfony se libère !
+
+4.) Apreçu de code
+
+Petit aparté sur le code du conteneur de services généré. 
+
+J'actualise bien la page pour que Symfony mette son cache à jour, je rouvre le fichier suivant : 
+
+<strong>var/cache/dev/appDevDebugProjectContainer.php</strong>
+
+et je cherche la méthode <strong>getOcPlatform_AntispamService()</strong> :
+
+                                                      ________________________________
+                                                      
+protected public function getOcPlatform_AntispamService() {
+	return $this->services['oc_platform.antispam'] = new \OC\PlatformBundle\Antispam\OCAntispam(
+		$this->get('swiftmailer.mailer.default'),
+		'en',
+		50
+	);
+}
+
+                                                            ---------------
+                                                            
+Je constate que Symfony a généré le code nécessaire pour récupérer mon service et ses trois dépendances. Notons ces deux petits points : 
+
+	-	J'ai défini la dépendance <strong>mailer</strong> mais le conteneur de services crée le service <strong>swiftmailer.mailer.default</strong>.
+				En réalité, <strong>mailer</strong> est un alias, c'est-à-dire que c'est un pointeur vers un autre service. L'idée est que
+				si un jour je change de bibliothèques pour envoyer des e-mails, j'utiliserai toujours le service <strong>mailer</strong>
+				dans mes contrôleurs, mais celui-ci pointera vers un autre service
+	-	Le paramètre <strong>%locale%</strong> que j'ai utilisé a été transformé en <strong>"en"</strong> pour <em>english</em>, qui est
+				la valeur que j'ai dans mon fichier <strong>parameters.yml</strong>. En effet, lors de la génération du conteneur de
+				services, Symfony connaît déjà la valeur de ce paramètre, il gagne donc du temps en écrivant directement la valeur et non
+				$this->getParameter('locale')
+				
+<h3>
+En résumé :
+</h3>
+Un service est une simple classe associée à une certaine configuration.
+Le conteneur de services organise et instancie tous mes services, grâce à leur configuration.
+Les services sont la bse de Symfony, et sont très utilisés par le coeur même du framework.
+L'injection de dépendances est assurée par le conteneur, qui connaît les arguments dont a besoin un service pour fonctionner, et les lui
+donne donc à sa création.
+
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

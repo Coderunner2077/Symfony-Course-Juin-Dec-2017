@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Personnaliser les pages d'erreur</title>
+</head>
+<body>
+<div class="container text-justify">
+													<h1>Personnaliser les pages d'erreur</h1>
+
+<p>Avec Symfony, lorsqu'une exception est déclenchée, le noyau l'attrape. Cela lui permet ensuite d'effectuer l'action adéquate.</p>
+
+<p>Le comportement par défaut du noyau consiste à appeler un contrôleur particulier intégré à Symfony: 
+<b>TwigBundle:Exception:show</b>. Ce contrôleur récupère les informations de l'exception, choisit le template adéquat (un template 
+différent par type d'erreur : 404, 500, etc.), passe les informations au template et envoie la réponse générée.</p>
+
+<p>&Agrave; partir de là, il est facile de personnaliser ce comportement: <b>TwigBundle</b> étant... un bundle, on peut le modifier
+pour l'adapter à nos besoins ! Mais ce n'est pas le comportement que nous voulons changer, c'est juste l'apparence de nos pages
+d'erreur. Il suffit donc de créer nos propres templates et de dire à Symfony d'utiliser nos templates et non ceux par défaut.</p>
+
+<h2>I./ Théorie: remplacer les vue d'un bundle</h2>
+<h3>1.) Constater les pages d'erreur</h3>
+
+<p>Les pages d'erreur de Symfony sont affichées lorsque le noyau attrape une exception. Il existe deux pages différentes: celle en
+mode <em>dev</em> et celle en mode <em>prod</em>.</p>
+
+<p>Il est possible de personnaliser les deux, mais celle qui nous intéresse le plus ici est la page d'erreur en mode production. 
+En effet, c'est celle qui est affichée aux visiteurs; elle mérite donc toute notre attention.</p>
+
+<p>Voilà ce à quoi elle ressemble :</p>
+
+<figure>
+	<img src="404_prod.png" alt="Erreur 404">
+	<figcaption>Une page d'erreur pas très séduisante</figcaption>
+</figure>
+
+<h3>2.) Localiser les vues concernées</h3>
+
+<p>Avant de chercher à modifier les vues, il faut d'abord bien les identifier. Les vues de ces pages se situent dans le bundle
+TwigBundle, et plus précisément dans le répertoire <br>
+<b>vendor\symfony\Symfony\src\Symfony\Bundle\TwigBundle\Resources\views\Exeption</b></p>
+
+<p class="alert alert-danger">
+Il ne faut surtout pas aller modifier directement les fichiers de ce répertoire. Comme tout ce qui se situe dans le répertoire
+<b>vendor</b>, ils sont susceptibles d'être écrasé par Composer à la prochaine mise à jour.</p>
+
+<h3>3.) Remplacer les vues d'un bundle</h3>
+
+<p>Il est très simple de remplacer les vues d'une bundle quelconque par les nôtres. Il suffit de créer le répertoire
+<b>app/Resources/NomDuBundle/views/</b> et d'y placer nos vues à nous ! Et cela est valable quelque soit le bundle.</p>
+
+<p>Nos vues doivent porter exactement les mêmes noms que celles qu'elles remplacent. Ainsi, si notre bundle utilise une vue 
+située dans :</p>
+
+<pre>…(namespace)/RépertoireDuBundle/Resources/views/Hello/salut.html.twig</pre>
+
+<p>alors nous devons créer la vue :</p>
+
+<pre>app/Resources/NomDuBundle/views/Hello/salut.html.twig</pre>
+
+<p class="aw">Attention, <b>NomDuBundle</b> correspond bien au nom du bundle, à savoir au nom du fichier que je peux trouver 
+à sa racine. Par exemple <b>OCPlatformBundle</b> est le nom du bundle, mais il se trouve dans <b>(src)/OC/PlatformBundle</b>.</p>
+
+<p>La figure suivante présente un schéma pour bien comprendre, appliqué à la vue <b>error.html.twig</b> du bundle TwigBundle.</p>
+
+<figure>
+	<img src="syntaxe_remplacer_vue.png" alt="Syntaxe pour remplacer une vue">
+	<figcaption>Syntaxe pour remplacer une vue</figcaption>
+</figure>
+
+<h3>4.) Comportement de Twig</h3>
+
+<p>Twig, pour chaque vue qu'on lui demande de retourner, regarde d'abord dans le répertoire <b>app/Resources</b> s'il trouve
+la vue correspondante. S'il ne la trouve pas, il va ensuite voir dans le répertoire du Bundle.</p>
+
+<p>Ainsi, ici pour chaque <b>TwigBundle:Exception:error.html.twig</b>, Twig ira vérifier <b>app</b> avant de prendre la vue
+du bundle TwigBundle.</p>
+
+<p class="aw">
+Attention, ceci n'est valable que pour les vues, car c'est le comportement de Twig. Cela ne fonctionne pas pareil pour tout ce
+qui est contrôleur et autre.</p>
+
+<h3>5.) Pourquoi il y a tous les formats <b>error.XXX.twig</b> dans le répertoire <b>Exception</b> ?</h3>
+
+<p>C'est une très bonnne question, et lorsqu'on les ouvre on peut se rendre compte que chaque vue d'erreur est compatible au
+format de son extension. Cela permet de ne pas générer des erreurs en cascade.</p>
+
+<p>Explication: imaginons que je charge un fichier JS, généré dynamiquement par l'un de mes contrôleurs (pourquoi pas !). Si ce
+contrôleur génère une erreur quelconque, et qu'il affiche cette erreur en HTML, alors mon navigateur qui attend du JavaScript sera
+perdu ! Il va tenter d'exécuter le retour du contrôleur en tant que JavaScript, mais le retour est en réalité du HTML, et cela
+générera donc pas mal d'erreurs dans mon navigateur. </p>
+
+<p>C'est pour éviter  ce comportement que Symfony fournit plusieurs formats d'erreur. Ainsi, si le format de ma réponse est 
+défini en tant que JavaScript, alors Symfony utilisera la vue <b>error.js.twig</b> qui est comptable JavaScript car en
+commentaires. </p>
+
+<h2>II./ Pratique: remplacer les templates Exception de TwigBundle</h2>
+<h3>1.) Créer la nouvelle vue</h3>
+
+<p>Maintenant qu'on sait le faire, il ne reste plus qu'à le faire ! Je crée donc le répertoire <b>app/Resouces/TwigBundle/views/Exception</b>.
+Et au sein de ce répertoire, le bundle utilise la convention suivante pour chaque nom du template:</p>
+
+<ul>
+	<li>Il vérifie d'abord l'existence de la vue <b>error[code_erreur].html.twig</b>, par exemple <b>error404.html.twog</b> dans le cas
+		d'une page introuvable.</li>
+	<li>Si ce template n'existe pas, il utilise la vue <b>error.html.twig</b>, une sorte de page d'erreur générique.</li>
+</ul>
+
+<p>Créons donc un <b>error404.html.twig</b> pour les pages non trouvées en plus du <b>error.html.twig</b> générique. Cela me permet 
+d'afficher un petit texte sympa en cas d'erreur 404 pour que l'utilisateur ne soit pas trop perdu.</p>
+
+<h3>2.) Le contenu d'une page d'erreur</h3>
+
+<p>Pour savoir quoi mettre dans ces vues, on va d'abord jeter un oeil à celle qu existe déjà, <b>error.html</b>. Je la trouverai dans 
+le dossier des vues <b>Exception</b> du <b>TwigBundle</b>, voici son contenu :</p>
+
+<b>Réf error.html</b>
+
+<p>Je peux y voir les différentes variables que je peux utiliser : <b>{{ status_text }}</b> et <b>status_code }}</b>. Fort de cela, je peux
+créer la page d'erreur que je souhaite: j'ai toutes les clés !</p>
+
+<p class="aw">
+Rappel: cette page d'erreur que l'on vient de personnaliser, c'est la page d'erreur générée en mode prod.</p>
+
+<p class="ai">
+Remplacer la page d'erreur du mode dev n'a pas bcp d'intérêt, moi seul la vois, et elle est déjà très complète. Cependant, si je souhaite
+quand même la modifier, alors ce n'est pas le template <b>error.html.twig</b> qu'il faut créer, mais le template <b>exception.html.twig</b>.
+Celui-ci se trouve aussi dans le répertoire <b>Exception</b>.</p>
+
+<h4>3.) S'assurer de voir nos modifications</h4>
+
+<p>Lorsque j'effectue des modifications dans mes templates, il arrive parfois que je ne les vois pas tout de suite au moment de rafraîcir
+ma page. En effet, les template Twig sont convertis en templates PHP et ce sont ces derniers qui sont utilisés pour être affichés
+à l'utilisateur final. En revanche, il faut savoir que ces templates convertis ne sont pas toujours mis à jour à chaque rafraîchissement
+de page (surtout en environnement de production) pour gagner du temps (mise en cache). Il faut donc lancer la commande suivante pour 
+s'assurer que le template soit bien généré à nouveau :</p>
+
+<pre>$ bin/console clear:cache</pre>
+
+<p>Par ailleurs, il faut également savoir que la commande ci-dessus ne supprime pas toujours tous les fichiers générés pour les templates.</p>
+
+<p>Si je ne vois pas toujours mes modifications, la dernière méthode pour s'assurer que mes templates sont bien tous générés à nouveau
+est de simplement supprimer le dossier de cache situé dans le dossier <b>var/cache</b> en lançant la commande:</p>
+
+<pre>$ rm -rf var/cache/prod/*</pre>
+
+<p class="ai">
+Elle ne marche pas cette commande dans mon cas.</p>
+
+<h2>En résumé :</h2>
+
+<ul>
+	<li>Modifier les vues d'un bundle quelconque est très pratique, mon site garde ainsi une cohérence dans son design, et ce, que ce
+		soit sur mon bundle à moi comme sur les autres;</li>
+	<li>Personnaliser les pages d'erreur, ce n'est pas la priorité lorsque l'on démarre un projet Symfony, mais c'est impératif avant
+		de l'ouvrir à nos visiteurs.</li>
+	<li>Le code du cours tel qu'il doit être à ce stade est disponible sur la branche 
+		<a href="https://github.com/winzou/mooc-symfony/tree/iteration-21">iteration-21</a> du dépôt Github.</li>
+</ul>
+
+
+
+
+
+
+
+
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

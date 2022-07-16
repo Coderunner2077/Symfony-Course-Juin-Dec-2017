@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Les contrôleurs avec Symfony</title>
+</head>
+<body>
+                                                         <h1>Les contrôleurs avec Symfony</h1>
+                                                          
+Le rôle principal du contrôleur est de retourner une réponse. 
+
+Dans l'inspecteur de réseau du navigateur, lorsque l'on renvoie une réponse via Symfony, l'entête "X-Debug-Token-Link" contient l'URL
+vers le Profiler de ma page (accessible d'habitude via la toolbar en bas de mes pages) en mode "dev" uniquement bien sûr.
+Ce chapitre est découpé en deux parties :
+
+	-	Les objets <strong>Request</strong> et <strong>Response</strong> qui me permettront de construire une réponse en fonction
+			de la requête
+	-	Les services de base qui vont me permettre de réaliser tout le travail nécessaire pour préparer le contenu de ma réponse.
+	
+<h3>
+I./ Manipuler l'objet Request
+</h3>
+Les paramètres de la requête se divisent entre deux grands groupes: 
+
+	-	Ceux contenus dans les routes (étudiés dans le chapitre sur les routes)
+	-	Les paramètres hors routes
+	
+1.) Les paramètres hors routes
+
+Prenons par exemple l'URL <strong>/platform/advert/5?tag=developer</strong>. Pour récupérer ce paramètre "tag", je dois me servir de 
+l'objet Request de Symfony.
+
+Pour récupérer la requête depuis un contrôleur, il faut tout d'abord ajouter un argument de type Request en paramètre de
+la méthode concernée. Comme ceci:
+
+<strong>public function viewAction($id, Request $request) { }</strong>
+
+Commment est-ce possible ? C'est en réalité le Kernel qui s'occupe de cela, car c'est lui qui dispose de la requête. Après avoir demandé au 
+routeur quel contrôleur exécuter, et avant de l'exécuter effectivement, il regarde si l'un des arguments de la méthode est typé avec Request.
+Si c'est le cas, il ajoute la requête aux arguments avant d'exécuter le contrôleur.
+
+Maintenant que j'ai vu comment récupérer la requête, voyons comment récupérer les paramètres contenus dans l'URL:
+
+J'ai utilisé $request->query pour récupérer les paramètres de l'URL passés en GET, mais il existe d'autres type de paramètres. Voici 
+le tableau récapitulant la façon de faire pour d'autres types de paramètres :
+
+<pre>_____________________________________________________________________________________________________________________________________________
+TYPE DE PARAMETRE       |   METHODE SYMFONY     |   METHODE TRADITIONNELLE  |   EXEMPLE                                                     |
+________________________|_______________________|___________________________|_______________________________________________________________|
+--------------------------------------------------------------------------------------------------------------------------------------------
+Variable d'URL          |   $request->query     |   $_GET                   |   $request->query->get('tag')                                 |
+--------------------------------------------------------------------------------------------------------------------------------------------
+Variable de formulaire  |   $request->request   |   $_POST                  |   $request->request->get('tag')                               |
+--------------------------------------------------------------------------------------------------------------------------------------------
+Variable de cookie      |   $request->cookies   |   $_COOKIE                |   $request->cookies->get('tag')                               |
+--------------------------------------------------------------------------------------------------------------------------------------------
+Variable de serveur     |   $request->server    |   $_SERVER                |   $request->server->get('REQUEST_URI')                        |
+--------------------------------------------------------------------------------------------------------------------------------------------
+Variable d'entête       |   $request->headers   |   $_SERVER['HTTP_*']      |   $request->headers->get('USER_AGENT')                        |
+--------------------------------------------------------------------------------------------------------------------------------------------
+Paramètres de route     |  $request->attributes |   n/a                     |   On utilise $id dans les arguments de la méthode, mais       |
+                        |                       |                           |   je pourrais également écrire :                              |
+                        |                       |                           |	$request->attributes->get('id')                             |
+--------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------
+</pre>
+Avec cette façon d'accéder aux variables, je n'ai pas besoin de tester leur existence. Par exemple, si j'écris $request->query->get('sdf')
+alors que le paramètre 'sdf' n'est pas défini dans l'URL, cela me retournera une chaîne vide, et non une erreur.
+
+2.) Les autres méthodes de l'objet Request
+
+Heureusement, l'objet Request ne se limite pas à la récupération de paramètres. Voyons ses possibilités.
+
+a./ Récupérer la méthode de la requête HTTP
+
+$request->isMethod('POST')
+$request->isMethod('GET')
+
+b./ Savoir si la requête est une requête AJAX
+
+Lorsque j'utiliserai AJAX pour mon site, j'aurai sans doute besoin de savoir, depuis le contrôleur, si la requête en cours est une requête
+AJAX ou non. Par exemple, pour renvoyer du XML ou du JSON à la place du HTML. Pour cela, rien de plus simple !
+
+                                                        __________________________________
+															
+if($request->isXmlHttpRequest()) {
+	// C'est une requête AJAX, retournons du JSON, par exemple
+	
+}
+
+                                                        __________________________________
+															
+c./ Tous les autres
+
+On a suvolé les principales méthodes. Pour voir la liste exhaustive des méthodes de l'objet Request, 
+<a href="http://api.symfony.com/3.0/Symfony/Component/HttpFoundation/Request.html">cliquer ici</a>.
+
+<h3>
+II./ Manipuler l'objet Response
+</h3>
+1.) Décomposition de la construction d'un objet Response
+
+Voyons la longue et décomposée de construire et de retourner une réponse. Pour l'exemple, traitons le cas d'une page d'erreur 404 :
+
+                                                        __________________________________
+													
+public function viewAction($id) {
+	// On crée la réponse sans lui donner de contenu pour le moment
+	$reponse = new Response();
+	
+	// On définit le contenu
+	$reponse->setContent('Ceci est une page d\'erreur 404');
+	
+	// On définit le code HTTP à "Not Found" (erreur 404)
+	$reponse->setStatusCode(Response::HTTP_NOT_FOUND);
+	
+	// On retourne la réponse
+	return $reponse;
+}
+
+                                                        __________________________________
+														
+Mais je n'utiliserai jamais cette méthode longue. C'est trop long.
+
+2.) Réponses et vues
+
+Généralement, on préfère que la réponse soit contenue dans une vue tel que le préconise l'architecture MVC. Heureusement pour moi, le 
+service <em>templating</em> que j'ai déjà utilisé dispose d'un raccourci : la méthode <strong>renderResponse()</strong>. Elle prend
+en paramètre le nom du template et ses variables, puis s'occupe de tout : créer la réponse, lui passer le contenu du template, et la
+retourner. La voici en action : 
+
+                                                        __________________________________
+														
+public function viewAction($id, Request $request) {
+	$tag = $request->query->get('tag');
+	
+	// On utilise le raccourci : il crée un objet Response
+	// Et lui donne comme contenu le contenu du template
+	return $this->get('templating')->renderResponse('OCPlatformBundle:Action:view.html.twig', array('id' => $id, 'tag' => $tag));
+	
+}
+
+                                                        __________________________________
+														
+Et voilà, en une seule ligne, c'est bouclé. Et c'est pas fini ! Le contrôleur dispose lui-même d'un raccourci pour utiliser cette méthode
+renderResponse(), il s'agit de la méthode render() qui s'utilise exactement de la même façon. La voici en action :
+
+                                                        __________________________________
+														
+public function viewAction($id, Request $request) {
+	$tag = $request->query->get('tag');
+	return $this->render('OCPlatformBundle:Advert:view.html.twig', array('id' => $id, 'tag' => $tag));
+}
+
+                                                        __________________________________
+                                                        
+C'est comme cela que je génèrerai la plupart de mes réponses. Finalement, l'objet Response est utilisé en coulisses, je n'ai pas à le
+manipuler directement dans la plupart des cas.
+
+Il ne faut pas oublier de créer la vue associée bien entendu : 
+
+Réf view.html.twig
+
+C'est la méthode $this->render() que j'utiliserai le plus souvent.
+
+3.) Réponse et redirection
+
+<em>Une redirection est une réponse HTTP</em>. 
+
+Pour simplifier la construction d'une réponse faisant une redirection, il existe un objet <strong>RedirectResponse</strong> qui 
+étend l'objet Response en lui ajoutant l'entête <em>HTTP Location</em> qu'il faut pour que mon navigateur comprenne qu'il s'agit 
+d'une redirection. Cet objet prend en argument de son constructeur l'URL vers laquelle rediriger, URL que je génère grâce au routeur bien
+entendu.
+
+Réf AdvertController2.php
+
+Avec ça, quand j'irai sur /platform/advert/5, je serai redirigé vers l'accueil !
+
+A l'image de la méthode render(), il existe  également une méthode raccourcie pour faire une redirection depuis un contrôleur. Il s'agit
+de la méthode redirect qui prend en argument l'URL. L'avantage est que j'ai pas à ajouter le <strong>use RedirectResponse</strong> en
+début du fichier : 
+
+                                                        __________________________________
+                                                        
+public function viewAction($id) {
+	$url = $this->get('router')->generate('oc_platform_home');
+	
+	return $this->redirect($url);
+}
+
+                                                        __________________________________
+														
+Il y a même encore plus court : 
+
+                                                        __________________________________
+						
+public function viewAction($id) {
+	return $this->redirectToRoute('oc_platform_home');
+}
+
+                                                        __________________________________
+														
+La méthode redirectToRoute() prend directement en argument le nom de la route vers laquelle rediriger, et non l'URL, très pratique !
+
+Mais qu'est-ce qui se passe sur la page avant la redirection ? 
+
+Symfony a la réponse ! Je vais dès maintenant modifier la valeur du paramètre <strong>intercept_redirects</strong> à <strong>true</strong>
+dans le ficheir <em>app/config/config_dev.yml</em>. Ensuite, je retourne à l'adresse <a href="sym/platform/advert/5">/platform/advert/5</a>,
+et j'obtiendrai la figure suivante :
+
+Réf intercepts1.png
+
+Symfony n'envoie pas l'entête de redirection au navigateur, mais à la place affiche une page avec... la toolbar ! Ce qui me permet 
+d'avoir plein d'informations sur la page qui vient de s'exécuter. Dans mon cas, ici, cela a peu d'intérêt. Mais c'est pratique pour
+déboguer lorsqu'il y a des requêtes SQL exécutées avant de faire la redirection.
+
+Et bien entendu, ce mécanisme n'existe qu'en mode "dev", pour ne pas venir déranger le mode "prod".
+
+4.) Changer le Content-type de la réponse
+
+Lorsque je retourne autre chose que du HTML, il faut que je change l'en-tête Content-type de la réponse. Prenons l'exemple suivant: je
+reçois une requêt AJAX et souhaite retourner un tableau en JSON : 
+
+Réf AdvertController3.php
+
+Note : Voici un dernier raccourci, dans ce cas particulier d'une réponse JSON. Il existe l'objet JSONResponse qui ne fait rien d'autre 
+que ce qu'on vient de faire : encoder son argument grâce à la méthode json_encode, puis définir le con Content-Type. Le code suivant montre
+très concrèment comment on aurait pu écrire l'exemple précédent : 
+
+                                                        __________________________________
+														
+// ...
+
+public function viewAction($id) {
+	return new JSONResponse(array('id' => $id));
+}
+	
+                                                        __________________________________
+														
+
+<h3>
+III./ Manipuler la session
+</h3>
+Une des actions classiques d'un contrôleur, c'est de manipuler la session. Définir, récupérer des variables de session, etc. sont des choses
+à savoir.
+
+Dans Symfony, il existe Session qui permet de gérer la session, il se récupère depuis la requête. Depuis cet objet, je dispose des méthodes
+get() et set() pour récupérer et définir des variables de session : 
+
+Réf AdvertController4.php
+
+Note : pour connaître les variables de la session courante, je dois aller dans le Profiler (la barre d'outils en bas), rubrique 
+<strong>Request</strong>, puis je descends tout en bas au paragraphe "Session Attributes". Très utile pour savoir si j'ai bien les 
+variables de session que j'attends.
+
+La session se lance automatiquement dès que je m'en sers. 
+
+Le Profiler me donne même les informations sur la date de création de la session, etc.
+
+Un autre outil très pratique offert par cet objet Session est ce qu'on appelle les "messages flash". Ce terme désigne une variable 
+de session qui ne dure que le temps d'un seul chargement de page.
+
+Voici un exemple d'utilisation (dans la méthode <strong>addAction()</strong>) : 
+
+Réf AdvertController5.php
+
+Je constate que la méthode <strong>addAction()</strong> définit deux messages flash (appelés ici 'info'). La lecture de ces messages se
+fait dans la vue de l'action <strong>viewAction</strong>, que j'a modifiée comme ceci : 
+
+Réf view2.html.twig
+
+Note : La variable Twig {{ app }} est une variable globale, disponible partout dans mes vues. Elle contient quelques variables utiles, je le
+verrai, dont le service "session" que je viens d'utiliser via {{ app.session }}.
+
+<h3>
+IV./ Application: le contrôleur de ma plateforme
+</h3>
+1.) Construction du contrôleur
+
+Ma plateforme est un bundle plutôt simple. Pour le moment, je manipule principalement les annonces, on va donc mettre toutes mes actions 
+dans un seul contrôleur "Advert". Plus tard, je pourrai éventuellement créer d'autres contrôleurs. 
+
+Malheureusement, je ne connaîs pas encore tous les services indispensables à la création des pages.
+
+Pour l'heure, mon contrôleur sera donc très simple. Je vais créer le squelette de toutes les actions que j'ai mises dans mes routes.
+
+Réf src/OC/PlatformBundle/Controller/AdvertController.php (==> AdvertController6.php)
+
+2.) A retenir
+a./ L'erreur 404
+
+Lorsqu'on déclenche une erreur 404, le noyau l'attrape et génère une belle page d'erreur 404. 
+Je peux aller voir l'annexe : <a href="https://openclassrooms.com/courses/developpez-votre-site-web-avec-le-framework-symfony/personnaliser-les-pages-d-erreur-1">
+Comment personnaliser ses pages d'erreur</a>
+
+b./ La définition des méthodes
+
+Mes méthodes vont être appelées par le noyau : elles doivent donc respecter le nom et les arguments que j'ai définis dans mes routes et
+se trouver dans le <em>scope</em> "public". 
+
+3.) Testons-le
+
+Naturellement, seules les actions view et index vont fonctionner pour l'instant, car je n'ai pas créé les templates associés pour
+les autres actions. Cependant, je peux voir le type d'erreur que Symfony me génère dans ce cas. 
+Et en mode "dev", on peut voir tout ce qui a fonctionné avant que l'erreur ne se déclenche, et la ligne qui a généré l'exception.
+
+<h3>
+En résumé :
+</h3>
+Le rôle du contrôleur est de retourner un objet Response: ceci est obligatoire !
+Le contrôleur construit la réponse en fonction des données qu'il a en entrée : paramètre de route et objet Request.
+Le contrôleur se sert de tout ce dont il a besoin pour construire la réponse : la base de données, les vues, les différents services,
+etc.
+
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

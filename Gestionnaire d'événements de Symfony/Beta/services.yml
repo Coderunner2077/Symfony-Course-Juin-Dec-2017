@@ -1,0 +1,7 @@
+# OC\PlatformBundle\Resources\config\services.yml
+
+services:
+    # ...
+    
+    oc_platform.beta.html_adder: 
+        class: OC\PlatformBundle\Beta\BetaHTMLAdder    

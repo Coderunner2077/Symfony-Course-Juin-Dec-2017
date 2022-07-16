@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<title>Sécurité et Gestion des utilisateurs</title>
+</head>
+<body>
+<div class="container text-justify">
+													<h1>Sécurité et gestion des utilisateurs</h1>
+													
+<p>Dans ce chaptre, je vais apprendre la sécurité avec Symfony. C'est un chapitre assez technique, mais indispensable : j'aurai à la fin un
+espace membres fonctionnel et sécurité !</p>
+<p>Je vais avancer en deux étapes : la première sera consacrée à la théorie de la sécurité sous Symfony. Nécessaire, elle me permettra
+d'aborder la deuxième étape : l'installation du bundle <b>FOSUserBundle</b>, qui viendra compléter notre espace membres.</p>
+
+<h1>I./ Authentification et autorisation</h1>
+
+<p>La sécurité sous Symfony est très poussée, je peux la contrôler très finement, mais surtout très facilement. Pour atteindre ce but, 
+Symfony a bien séparé deux mécanismes différents: l'authentification et l'autorisation. </p>
+
+<h3>1.) Les notions d'authentification et d'autorisation</h3>
+<h4>a./ L'authentification</h4>
+
+<p>L'authentification est le processus qui va définir qui on est, en tant que visiteur. L'enjeu est vraiment très simple: sois on n'est pas
+identifié sur le site et on est anonyme, sois on s'est identifié (via le formulaire d'identification ou via un cookie "Se souvenir de 
+moi") et on est un membre du site. C'est ce que la procédure d'authentification va déterminer. Ce qui gère l'authentification dans 
+Symfony s'appelle un <em>firewall</em>, ou un pare-feu en français.</p>
+
+<p>Ainsi, je pourrai sécuriser des parties de mon site Internet juste en forçant le visiteur à être un membre authentifié. Si le visiteur
+l'est, le firewall va le laisser passer, sinon il le redirigera sur la page d'identification. Cela se fera donc dans les paramètres du 
+firewall, comme on le verra plus en détail par la suite du cours.</p>
+
+<h4>b./ L'autorisation</h4>
+
+<p>L'autorisation est le processus qui va déterminer si j'ai le droit d'accéder à la ressource (la page) demandée. Il agit donc après le 
+firewall. Ce qui gère l'autorisation dans Symfony s'appelle l'<em>access control</em>. </p>
+
+<p>Par exemple, un membre identifié <em>lambda</em> aura accès à la liste des sujets du forum, mais ne peut pas supprimer de sujet. Seuls
+les membres disposant des droits d'administrateur le peuvent, c'est ce que l'access control va vérifier.</p>
+
+<h3>2.) Exemples</h3>
+
+<p>Pour bien comprendre la différence entre l'authentification et l'autorisation, on reprend ici les exemples de la 
+<a href="https://symfony.com/doc/current/security.html">documentation officielle</a> qui sont très intéressants et illustratifs. On y 
+distingue bien les différents acteurs de la sécurité.</p>
+
+<h4>a./ Je suis anonyme et je veux accéder à la page <em>/foo</em> qui ne requiert pas de droits</h4>
+
+<p>Dans ce cas, si je réussis à passer le firewall, je pourrai y avoir accès. La figure suivante montre le processus : </p>
+
+<figure class="text-center">
+	<img src="anonymous.png" alt="Anonyme vs firewall">
+	<figcaption>Schéma du processus de la sécurité</figcaption>
+</figure>
+
+<p>Sur ce schéma, on distingue bien le firewall d'un côté et le contrôle d'accès de l'autre. Voyons tout cela en détail :</p>
+
+<ol>
+	<li>Le visiteur n'est pas identifié, il est anonyme, et tente d'accéder à la page <b>/foo</b></li>
+	<li>Le firewall est configuré de telle manière qu'il n'est pas nécessaire d'être identifié pour accéder à la page <b>/foo</b>. Il laisse
+		donc passer notre visiteur anonyme.</li>
+	<li>Le contrôle d'accès regarde si la page <b>/foo</b> requiert des droits d'accès: il n'y en a pas. IL laisse donc passer le visiteur,
+		qui n'a aucun droit particulier.</li>
+	<li>Le visiteur a donc accès à la page <b>/foo</b></li>
+</ol>
+
+<h4>b./ Je suis anonyme, et je veux accéder à la page <em>/admin/foo</em> qui requiert certains droits</h4>
+
+<p>Dans cet exemple, c'est le même visiteur anonyme qui veut accéder à la page <b>/admin/foo</b>. Mais cette fois, la page <em>/admin/foo</em>.
+Mais cette fois, la page <b>/admin/foo</b> requiert le rôle <b>ROLE_ADMIN</b>; c'est un droit particulier, on le verra plus tard. Mon 
+visiteur va se faire refuser l'accès à la page, la figure suivante montre comment :</p>
+
+<figure>
+	<img src="anonymous2.png" alt="Anonymes vs Access Controll">
+	<figcaption>Schéma du processus de sécurité</figcaption>
+</figure>
+
+<p>Voici le processus pas à pas:</p>
+
+<ol>
+	<li>Le visiteur n'est pas identifié, il est toujours anonyme, et tente d'accéder à la page <b>/admin/foo</b></li>
+	<li>Le firewall est configuré de manière à ce qu'il ne soit pas nécessaire d'être identifié pour accéder à la page <b>/admin/foo</b>.
+		Il laisse donc passer notre visiteur.</li>
+	<li>Le contrôle d'accès regarde si la page <b>/admin/foo</b> requiert des drois d'accès: oui, il faut le rôle <b>ROLE_ADMIN</b>. Le
+		visiteur n'a pas ce rôle, donc le contrôle d'accès lui interdit l'accès à la page <b>/admin/foo</b></li>
+	<li>Le visiteur n'a donc pas accès à la page <b>/admin/foo</b>, et se fait rediriger sur la page d'identification.</li>
+</ol>
+
+<h4>c./ Je suis identifié, et je veux accéder à la page <em>/admin/foo</em> qui requiert certains droits</h4>
+
+<figure>
+	<img src="member.png" alt="Member vs Access Control">
+	<figcaption>Schéma du processus de sécurité</figcaption>
+</figure>
+
+<ol>
+	<li>Ryan s'identifie et il tente d'accéder à la page <b>/admin/foo</b>. D'abord, le firewall confirme l'authentification de Ryan
+		(c'est son rôle !). Visiblement, c'est bon, il laisse donc passer Ryan.</li>
+	<li>Le contrôle d'accès regarde si la page <b>/admin/foo</b> requiert des droits d'accès: oui, il faut le rôle <b>ROLE_ADMIN</b>, que
+		Ryan n'a pas. Il interdit donc l'accès à la page <b>/admin/foo</b> à Ryan.</li>
+	<li>Ryan n'a pas accès à la page <b>/admin/foo</b> non pas parce qu'il ne s'est pas identifié, mais parce son compte utilisateur n'a
+		pas les droits suffisants. Le contrôle d'accès lui affiche donc une page d'erreur lui disant qu'il n'a pas les droits suffisants.</li>
+</ol>
+
+<h4>d./ Je suis identifié, et je veux accéder à la page <em>/admin/foo</em> qui requiert des droits que j'ai</h4>
+
+<p>Ici, on a donc le rôle <b>ROLE_ADMIN</b>, du coup, je peux accéder à la page <b>/admin/foo</b>, comme le montre la figure suivante: </p>
+
+<figure>
+	<img src="admin.png" alt="Admin vs Access Control">
+	<figcaption>Schéma du processus de sécurité</figcaption>
+</figure>
+
+<ol>
+	<li>L'utilisateur admin s'identifie, et il tente d'accéder à la page <b>/admin/foo</b>. D'abord, le firewall confirme l'authentification
+		d'admin. Ici aussi, c'est bon, il laisse donc passer admin.</li>
+	<li>Le contrôle d'accès regarde si la page <b>/admin/foo</b> requiert des droits d'accès: oui, il faut le rôle <b>ROLE_ADMIN</b>,
+		qu'admin a bien. Il laisse donc passer l'utilisateur.</li>
+	<li>L'utilisateur admin a alors accès à la page <b>/admin/foo</b>, car il a été identifié et il dispose des droits nécessaires.</li>
+</ol>
+
+<h3>3.) Processus général</h3>
+
+<p>Lorsqu'un utilisateur tente d'accéder à une ressource protégée, le processus est finalement toujours le même, le voici :</p>
+
+<ol>
+	<li>Un utilisateur veut accéder à une ressource protégée;</li>
+	<li>Le firewall redirige l'utilisateur au formulaire de connexion;</li>
+	<li>L'utilisateur soumes ses informations d'identification (par exemple login et mot de passe);</li>
+	<li>Le firewall authentifie l'utilisateur;</li>
+	<li>L'utilisateur authentifié renvoie la requête initiale;</li>
+	<li>Le contrôle d'accès vérifie les droits de l'utilisateur, et autorise ou non l'accès à la ressource protégée.</li>
+</ol>
+
+<p>Ces étapes sont simples, mais très flexibles. En effet, derrière le mot "authentification" se cache en pratique bien des méthodes: un
+formulaire de connexion classique, mais également l'authentification via Facebook, Google, etc., ou avec les certificats X.509, etc. Bref,
+le processus reste toujours le même, mais les méthodes pour authentifier mes internautes sont nombreuses, et répondent à tous mes besoins.
+Et, surtout, elles n'ont pas d'impact sur le reste de mon code: qu'un utilisateur soit authentifié via Facebook ou un formulaire classique
+ne change rien à mes contrôleurs !</p>
+
+<h2>II./ Première approche de la sécurité</h2>
+
+<p>Si les processus que l'on vient de voir sont relativement simples, leur mise en place et leur configuration nécessitent un peu de traivail.
+</p>
+<p>Je vais construire pas à pas la sécurité de mon application. Cette section commence donc par une approche théorique de la configuration
+de la sécurité avec Symfony (notamment l'authentification), puis on mettra en place un formulaire de connexion simple. On pourra ainsi
+s'identifier sur notre site, ce qui est plutôt intéressant ! Par contre, les utilisateurs ne seront pas encore liés à la base de données, on
+le verra un peu plus loin, avançons doucement.</p>
+
+<h3>1.) Le fichier de configuration de la sécurité</h3>
+
+<p>La sécurité étant un point important, elle a l'honneur d'avoir son propre fichier de configuration. Il s'agit du fichier <b>security.yml</b>,
+situé dans le répertoire <b>app/config</b> de mon application. Il est un peu vide pour l'instant, rajoutons y donc quelques lignes que 
+l'on expliquera juste après.</p>
+
+<b>Réf security.yml</b>
+
+<p class="ai">
+Le nom de la section de base s'appelle <em>security</em>, il n'est pas sorti d'un chapeau... c'est tout simplement le nom choisi par le 
+bundle <b>SecurityBundle</b> pour sa configuration. Eh oui, la sécurité dans Symfony vient d'un bundle ! La configuration que je ferai
+dans ce chapitre n'est autre que la configuration de ce bundle.</p>
+
+<p>Décrivons donc chaque section de cette configuration.</p>
+
+<h4>a./ Section <em>encoders</em></h4>
+
+<pre>
+security:
+	encoders:
+		Symfony\Component\Security\Core\User\User: plaintext
+</pre>
+
+<p>Un encodeur est un objet qui encode les mots de passe de mes utilisateurs. Cette section de configuration permet de modifier
+l'encodeur utilisé pour mes utilisateurs, et donc la façon dont sont encodés les mots de passe dans mon application.</p>
+
+<p>Ici, l'encodeur utilisé, <b>plaintext</b>, n'encode en réalité rien du tout. Il laisse en fait les mots de passe en clair, c'est 
+pourquoi les mots de passe que je verrai dans une section juste en dessous sont en clair. Evidemment, je définirai par la suite un 
+vrai encodeur, du type sha512, une méthode sûre !</p>
+
+<h4>b./ Section <em>role_hierarchy</em></h4>
+
+<pre>
+security:
+	role_hierarchy:
+		ROLE_ADMIN:		ROLE_USER
+		ROLE_SUPER_ADMIN: [ROLE_USER, ROLE_ADMIN, ROLE_ALLOWED_TO_SWITCH]
+</pre>
+
+<p>La notion de "rôle" est au centre du processus d'autorisation. On assigne un ou plusieurs rôles à chaque utilisateur, et pour accéder
+aux ressources on demande que l'utilisateur ait un ou plusieurs rôles. Ainsi, lorsqu'un utilisateur tente d'accéder à une ressource, le
+contrôleur d'accès vérifie s'il dispose du ou des rôles requis par la ressource. Si c'est le cas, l'accès est accordé. Sinon, l'accès
+est refusé.</p>
+
+<p>Cette section de configuration dresse une <b>hiérarchie</b> des rôles. Ainsi, le rôle <b>ROLE_USER</b> est compris dans le rôle
+<b>ROLE_ADMIN</b>. Cela signifie que si ma page requiert le rôle <b>ROLE_USER</b>, et qu'un utilisateur disposant du rôle <b>ROLE_ADMIN</b>
+tente d'y accéder, il sera autorisé, car en disposant du rôle d'administrateur, il dispose également du rôle <b>ROLE_USER</b>. </p>
+
+<p>Les noms des rôles n'ont pas d'importance, si ce n'est qu'ils doivent commencer par "ROLE_".</p>
+
+<h4>c./ Section <em>providers</em></h4>
+
+<pre>
+security:
+    providers:
+    	in_memory:
+    		memory:
+    			users:
+    				user:	{ password: userpass, roles: [ 'ROLE_USER' ] }
+    				admin:  { password: adminpass, roles: [ 'ROLE_ADMIN' ] }
+</pre>
+
+<p>Un <em>provider</em> est un fournisseur d'utilisateurs. Les firewalls s'adressent aux providers pour récupérer les utilisateurs et les
+identifier.</p>
+
+<p>Pour l'instant, je peux le voir dans le fichier, un seul fournisseur est défini, nommé <b>in_memory</b> (encore une fois, le nom est
+arbitraire). C'est un fournisseur assez particulier, dans le sens où les utilisateurs sont directement listés dans ce fichier de 
+configuration, il s'agit des utilisateurs "user" et "admin". Bien entendu, c'est un fournisseur qui sert uniquement dans le cadre du
+développement, pour tester la couche sécurité sans avoir besoin d'une quelconque base de données derrière. <b>Il faudra bien sûr le 
+supprimer par la suite.</b></p>
+
+<p>Par la suite, il existe d'autres types de fournisseurs que celui-ci. On utilisera notamment par la suite un fournisseur permettant 
+de récupérer les utilisateurs de la base de données, il est déjà bien plus intéressant.</p>
+
+<h4>d./ Section <em>firewalls</em></h4>
+
+<pre>
+security:
+	firewalls:
+		dev:
+			pattern: ^/(_(profiler|wdt)|css|images|js)/
+			security: false
+</pre>
+
+<p>Comme on l'a vu précédemment, un firewall (ou pare-feu) cherche à vérifier que vous êtes bien celui que vous prétendez être. Ici, seul
+le pare-feu <b>dev</b> est défini, on n'a supprimé les autres pare-feu de démonstration. Ce pare-feu permet de désactiver la sécurité
+sur certaines URL, on en reparle plus loin.</p>
+
+<h4>e./ Section <em>access_control</em></h4>
+
+<pre>
+security:
+	access_control:
+		#- { path: ^/login, roles: IS_AUTHENTICATED_ANONYMOUSLY, requires_channel: https }
+</pre>
+
+<p>Comme on l'a vu, le contrôle d'accès (ou <em>access control</em> en anglais) va s'occuper de déterminer si le visteur a les bons droits
+(rôles) pour accéder à la ressource demandée. Il y a différents moyens d'utiliser les contrôles d'accès: </p>
+
+<ul>
+	<li>Soit ici depuis la configuration, en appliquant des règles sur les URL. On sécurise ainsi un ensemble d'URL en une seule ligne, par
+		exemple toutes celles qui commencent par <b>/admin</b>.</li>
+	<li>Soit directement depuis le contrôleur, en appliquant des règles sur les méthodes des contrôleurs. On peut ainsi appliquer des règles
+		différentes selon des paramètres, c'est donc plus flexible.</li>
+</ul>
+
+<p>Ces deux moyens d'utiliser la même protection par rôle sont très complémentaires, et offrent une flexibilité intéressante, on en raperle.</p>
+
+<h3>2.) Mettre en place un pare-feu</h3>
+
+<p>Maintenant que nous avons survolé le fichier de configuration, j'ai une vue d'ensemble rapide de ce qu'il est possible de configurer. 
+Parfait !</p>
+
+<p>Il est temps de passer aux choses sérieuses, en mettant en place une authentification pour notre application. Je vais le faire en
+deux étapes. La première consiste en la construction d'un pare-feu, la deuxième est la construction d'un formulaire de connexion.
+Commençons.</p>
+
+<h4>a./ Créer le pare-feu</h4>
+
+<p>Commençons par créer un pare-feu simple, que j'appellerai <b>main</b>, comme ceci :</p>
+
+<pre># app/config/security.yml
+
+security:
+	firewalls:
+		dev:
+			pattern: ^/(_(profiler|wdt)css|images|js)/
+			security: false
+		main:
+			pattern: ^/
+			anonymous: true
+</pre>
+
+<p>Dans les trois petites lignes que je viens de rajouter:</p>
+<ul>
+	<li><b>main</b> est le nom du pare-feu. Il s'agit juste d'un identifiant unique, je mets en réalité ce que je veux;</li>
+	<li><b>pattern: ^/</b> est un masque d'URL. Cela signifie que toutes les URL commençant par "/" (c'est à dire notre site tout
+		entier) sont protégées par ce pare-feu. On dit qu'elles sont <em>derrière</em> le pare-feu <b>main</b>.</li>
+	<li><b>anonymous: true</b> accepte les utilisateurs anonymes. Nous protégeions nos ressources grâce au rôles
+</ul>
+
+<p class="ai">
+Le pare-feu <b>main</b> recoupe les URL du pare-feu <b>dev</b>, c'est vrai. En fait, seul un unique pare-feu peut agir une URL, et la règle
+d'attribution est la même que pour les routes: premier arrivé, premier servi ! En l'occurence, le pare-feu <b>dev</b> est défini avant
+notre pare-feu <b>main</b>, donc une URL <b>/css/...</b> sera protégée par le pare-feu <b>dev</b>. Ce pare-feu désactive totalement la
+sécurité, au final les URL <b>/css/...</b> ne sont pas protégées du tout.</p>
+
+<p>Si j'actualise n'importe quelle page de mon site, je peux maintenant voir dans la barre d'outils en bas que je suis authentifié en tant
+que anonyme, comme sur la figure suivante :</p>
+
+<figure>
+	<img src="firewall_profiler.png" alt="Firewall dans la barre Profiler">
+	<figcaption>Je suis authentifié en tant qu'anonyme</figcaption>
+</figure>
+
+<p class="well">
+Authentifié en tant qu'anonyme ? C'est pas un peu bizarre ça ?</p>
+
+<p>En effet, les utilisateurs anonymes sont <em>techniquement</em> authentifiés: les firewall les a bien reconnus comme étant des anonymes.
+Mais ils restent des anonymes, et si nous mettions la valeur du paramètre <b>anonymous</b> à <b>false</b>, on se serait bien refusé l'accès.
+Pour distinguer les anonymes authentifiés des vrais membres authentifiés, il faudra jouer sur les rôles (on en reparle plus loin).</p>
+
+<p>Pour compléter ce firewall, il manque un élément indispensable: la méthode d'authentification. En effet, mon pare-feu veut bien 
+protéger mes URL, mais il faut lui dire comment vérifier que mes visiteurs sont bien authentifiés ! et notammen, où trouver mes utilisateurs
+!</p>
+
+<h4>b./ Définir une méthode d'authentification pour le pare-feu</h4>
+
+<p>Je vais faire simple pour la méthode d'authentification: un bon vieux formulaire HTML. Pour configurer cela, c'est l'option <b>form_login</b>,
+entre autres, qu'il faut rajouter à notre pare-feu:</p>
+
+<pre># app/config/security.yml
+
+security:
+	provider:		in_memory        # emplacement incorrect...(?)
+	firewalls:
+		# ...
+		main:
+			pattern: 		^/
+			anonymous: 		true
+			form_login:
+				login_path: login
+				check_path: login_check
+			logout:
+				path:		logout
+				target:		login	
+</pre>
+
+<p>Expliquons les quelques nouvelles lignes:</p>
+
+<ul>
+	<li><b>provider: in_memory</b> : est le fournisseur d'utlisateurs pour ce pare-feu. En effet, un pare-feu a besoin de savoir où trouver
+		les utilisateurs, cela se fait par le biais de ce paramètre. La valeur <b>in_memory</b> correspond au nom du fournisseur défini
+		dans la section <b>providers</b> qu'on a vu plus haut.</li>
+	<li><b>form_login</b> est la méthode d'authentification utilisée pour ce pare-feu. Elle correspond à la méthode classique, via un
+		formulaire HTML. Ses options sont les suivantes: 
+		<ul>
+			<li><b>login_path: login</b> correspond à la route du formulaire de connexion. En effet, ce formulaire est bien disponible à une
+				certaine adresse, il s'agit ici de la route <b>login</b>, que nous définirons juste après.</li>
+			<li><b>check_path: login_check</b> correspond à la route de validation du formulaire de connexion, c'est sur cette route que 
+				seront vérifiés les identifiants renseignés par l'utilisateur sur le formulaire précédent.</li>
+		</ul></li>
+	<li><b>logout</b> rend possible la déconnexion. En effet, par défaut il est impossible de se déconnecter une fois authentifié. Ses
+		options sont les suivantes:
+		<ul>
+			<li><b>path</b> est le nom de la route à laquelle le visiteur doit aller pour se déconnecter. On va la définir plus loin.</li>
+			<li><b>target</b> est le nom de la route vers laquelle sera redirigé le visiteur après sa déconnexion.</li>
+		</ul></li>
+</ul>
+
+<p>Rappelons-nous le processus: lorsque le système de sécurité (ici, le pare-feu) initie le processus d'authentification, il va rediriger
+l'utilisateur sur le formulaire de connexion (la route <b>login</b>). On va créer ce formulaire juste après, il devra envoyer les valeurs
+(nom d'utilisateur et mot de passe) vers la route (ici, <b>login_check</b>) qui va prendre en charge la gestion du formulaire.</p>
+
+<p>Je m'occupe de l'affichage du formulaire, mais c'est le système de sécurité de Symfony qui va s'occuper de la gestion de ce formulaire.
+Concrètement, nous allons définir un contrôleur à exécuter pour la route <b>login</b>, mais pas pour la route <b>login_check</b> ! Symfony
+va attraper la requête de notre visiteur sur la route <b>login_check</b>, et gérer lui-même l'authentification. En cas de succès, le 
+visiteur sera authentifié. En cas d'échec, Symfony le renverra vers notre formulaire de connexion pour qu'il réessaie.</p>
+
+<p>Voici alors les routes à définir dans le fichier <b>routing.yml</b></p> :
+
+<b>Réf rouing.yml</b>
+
+<p>Comme on peut le voir, on ne définit pas de contrôleur pour les routes <b>login_check</b> et <b>logout</b>. Symfony va attraper tout seul
+les requêtes sur ces routes (grâce au gestionnaire d'événements, que l'on va voir dans le prochain chapitre).</p>
+
+<h4>c./ Créer le bundle <em>OCUserBundle</em></h4>
+
+<p>Dans la définition des routes précédente, on a défini le contrôleur à exécuter sur la route <b>login</b> comme étant dans le bundle
+<b>OCUserBundle</b>. En effet, la gestion des utilisateurs sur un site mérite amplement son propre bundle !</p>
+
+<p>Générons donc le bundle à l'aide de la commande <b>php bin/console generate:bundle</b>...</p>
+
+<p>Un petit nettoyage s'impose, je peux donc supprimer allègrement: </p>
+
+<ul>
+	<li>Le contrôleur <b>Controller/DefaultController.php</b></li>
+	<li>Son répertoire de tests <b>Tests/Controller</b></li>
+	<li>Son répertoire de vues <b>Resources/views/Default</b></li>
+	<li>Le fichier de routes <b>Resources/config/routing.yml</b></li>
+	<li>La ligne d'import (<b>oc_user</b>) du fichier de routes dans le fichier <b>app/config/routing.yml</b></li>
+</ul>
+
+<h4>d./ Créer le formulaire de connexion</h4>
+
+<p>Il s'agit maintenant de créer le formulaire de connexion, disponible sur la route <b>login</b>, soit l'URL <b>/login</b>. Commençons
+par le contrôleur:</p>
+
+<b>Réf SecurityController.php</b>
+
+<p>En réalité, ce contrôleur ne fait qu'afficher la vue du formulaire. Le code au milieu n'est là que pour récupérer les erreurs d'une
+éventuelle soumission précédente du formulaire. Rappelons-nous: c'est Symfony qui gère la soumission, et lorsqu'il y a une erreur dans
+l'identification, il redirige le visiteur vers ce contrôleur, en nous donnant heureusement l'erreur pour qu'on puisse lui afficher.</p>
+
+<p>La vue pourrait être la suivante:</p>
+
+<b>Réf login.html.twig</b>
+
+<p>Lorsque j'entre de faux identifiants, l'erreur générée est celle visible à la figure suivante :</p>
+
+<figure>
+	<img src="form_error.png" alt="Bad credentials">
+	<figcaption>Mauvais identifiants</figcaption>
+</figure>
+
+<p>Lorsque j'entre les bons identifiants, la barre d'outils sur la page suivante m'indique bien que je suis authentifié en tant que
+qu'utilisateur "user", comme le montre la figure suivante.</p>
+
+<figure>
+	<img src="authenticated_profiler.png" alt="Authentifié, comme le montre Profiler">
+	<figcaption>Je suis bien authentifié</figcaption>
+</figure>
+
+<p class="well">
+Mais quels sont les bons identifiants ?</p>
+
+<p>Il faut lire attentivement le fichier de configuration qu'on a parcouru précédemment. Rappelons-nous: on a défini le fournisseur 
+d'utilisateur de notre pare-feu à <b>in_memory</b>, qui est défini quelques lignes plus haut dans le fichier de configuration. Ce
+fournisseur est particulier, dans le sens où il lit les utilisateurs directement dans sa configuration. On a donc deux utilisateurs
+possibles: "user" et "admin", avec pour mot de passe respectivement "userpass" et "adminpass".</p>
+
+<p>Voilà, mon formulaire de connexion est maintenant opérationnel. Je trouverai plus d'informations pour le personnaliser dans 
+<a href="https://symfony.com/doc/current/security/form_login_setup.html">la documentation</a>.</p>
+
+<h3>3.) Les erreurs courantes</h3>
+
+<p>Il y a quelques pièges à connaître quand je travaillerai plus avec la sécurité, en voici quelques-uns</p>
+
+<h4>a./ Ne pas oublier la définition des routes</h4>
+
+<p>Une erreur bête est d'oublier de créer les routes <b>login</b>, <b>login_check</b> et <b>logout</b>.</p>
+
+<h4>b./ Les pare-feu ne partagent pas</h4>
+
+<p>Si j'utilise plusieurs pare-feu, il faut savoir qu'ils ne paragent rien les uns avec les autres. Ainsi, si je suis authentifié sur l'un,
+je ne le serai pas forcément sur l'autre, et inversement. Cela permet d'accroître la sécurité lors d'un paramètrage complexe.</p>
+
+<h4>c./ Bien mettre <b>/login_check</b> derrière le pare_feu</h4>
+
+<p>Je dois m'assurer que l'URL du <b>check_path</b> (ici, <b>/login_check</b>) est bien derrière derrière le pare-feu que j'utilise pour le
+formulaire de connexion(ici, <b>main</b>). En effet, c'est la route qui permet l'authentification au pare-feu. Or, comme les pare-feu ne
+partagent rien, si cette route n'appartient pas au pare-feu que je veux, j'aurai droit à une belle erreur.</p>
+
+<p>Dans notre cas, le <b>pattern:  ^/</b> du pare-feu <b>main</b> prend l'URL <b>/login_check</b>, c'est donc OK.</p>
+
+<h4>d./ Ne pas sécuriser l'accès au formulaire de connexion</h4>
+
+<p>En effet, si le formulaire est sécurisé, comment les nouveaux arrivants vont-ils pouvoir s'authentifier ? En l'occurence, il faut
+faire attention que la page <b>/login</b> ne requière aucun rôle, on fera attention à cela lorsqu'on va définir les autorisations.</p>
+
+<p class="aw">
+Cette erreur est vicieuse, car si je sécurise à tort l'URL <b>/login</b>, je subirai une redirection infinie. En effet, Symfony considère
+que je n'ai pas accès à <b>/login</b>, et pour que je puisse y avoir accès, me redirige vers la page... <b>/login</b> !</p>
+
+<p>De plus, si je souhaite interdire les anonymes sur le pare-feu <b>main</b>, le problème se pose également, car un nouvel arrivant 
+sera forcément anonyme et ne pourra pas accéder au formulaire de connexion. L'idée dans ce cas est de sortir le formulaire de connexion
+(la page <b>/login</b>) du pare-feu <b>main</b>. En effet, c'est le <b>check_path</b> qui doit obligatoirement appartenir au pare-feu,
+pas le formulaire lui-même. Si je souhaite interdire les anonymes sur mon site (et uniquement dans ce cas), je peux donc m'en sortir 
+avec la configuration suivante:</p>
+
+<pre># app/config/security.yml
+
+#...
+
+firewalls:
+	# On crée un pare-feu uniquement pour le formulaire
+	main_login:
+		# Cette extpression régulière permet de prendre /login (mais pas /login_check !)
+		pattern:	^/login$
+		anonymous:	true
+	main:
+		pattern:	^/
+		anonymous:	false
+		#...
+</pre>
+
+<p>En plaçant ce nouveau pare-feu <em>avant</em> notre pare-feu <em>main</em>, on sort le formulaire de connexion du pare-feu sécurisé.
+Nos nouveaux arrivants auront donc une chance de s'identifier !</p>
+
+<h3>4.) Récupérer l'utilisateur courant</h3>
+
+<p>Pour récupérer les informations sur l'utilisateur courant, qu'il soit anonyme ou non, il faut utiliser le service 
+<b>security.token_storage</b>.</p>
+
+<p>Ce service dispose d'une méthode <b>getToken()</b>, qui permet de récupérer la session de sécurité courante (à ne pas confondre avec
+la session classique, disponible elle via <b>$request->getSession()</b>). Ce token vaut <b>null</b>  si je suis hors d'un pare-feu.
+Et si je suis derrière un pare-feu, alors je peux récupérer l'utilisateur courant grâce à <b>$token->getUser()</b>.</p>
+
+<h4>a./ Depuis le contrôleur ou un service</h4>
+
+<p>Voici concrètement comment l'utiliser: </p>
+
+<pre class="controller">// On récupère le service
+$security = $container->get('security.token_storage');
+
+// On récupère le token
+$token = $security->getToken();
+
+// Si la requête courante n'est pas derrière un pare-feu, $token est null
+
+// Sinon, on récupère l'utilsiateur
+$user = $token->getUser();
+
+// Si l'utilisateur courant est anonyme, $user est "anon."
+
+// Sinon, c'est une instance de notre entité User, on peut l'utiliser normalement
+$user->getUsername();
+</pre>
+
+<p>Comme je peux le voir, il y a pas mal de vérifications à faire, suivant les différents cas possibles. Heureusement, en pratique, 
+le contrôleur dispose d'un raccourci permettant d'automatiser cela, il s'agit de la méthode 
+<b><a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php#L324">
+$this->getUser()</a></b>. Cette méthode retourne :</p>
+
+<ul>
+	<li><b>null</b> si la requête n'est pas derrière un pare-feu, ou si l'utilisateur courant est anonyme;</li>
+	<li>Une instance de <b>User</b> le reste du temps (utilisateur authentifié derrière un pare-feu et non-anonyme).</li>
+</ul>
+
+<p>Du coup, voici le code simplifié depuis un contrôleur:</p>
+
+<pre class="controller">// Depuis un contrôleur
+$user = $this->getUser();
+
+if(null === $user) {
+	// Ici, l'utilisateur est anonyme ou l'URL n'est pas derrière un pare-feu
+} else {
+	// Ici, $user est une instance de notre classe  User
+}
+</pre>
+
+<h4>b./ Depuis une vue Twig</h4>
+
+<p>J'ai accès plus facilement à l'utilisateur directement depuis Twig. En effet, Twig dispose de quelques variables globales via la 
+variable <b>{{ app }}</b>; eh bien, l'utilisateur courant en fait partie, via {{ user.app }} :</p>
+
+<pre class="vue">Bonjour, {{ app.user.username }} - {{ app.user.email }}</pre>
+
+<p class="aw">Au même titre, qua dans un contrôleur, attention à ne pas utiliser <b>{{ app.user }}</b> lorsque l'utilisateur n'est pas 
+authentifié, car il vaut <b>null</b>.</p>
+
+<h2>III./ Gestion des autorisations avec les rôles</h2>
+
+<p>La section précédente, nous a amenés à réaliser une authentification opérationnelle. J'ai un pare-feu, une méthode d'authentification
+par formulaire HTML, et deux utilisateurs. La couche <strong>authentification</strong> est complète !</p>
+
+<p>Dans cette section, je vais m'occuper de la deuxième couche de la sécurité: l'<strong>autorisation</strong>. C'est une phase bien plus
+simple à gérer heureusement, il suffit juste de demander si tel(s) droit(s) à l'utilisateur courant (identifié ou non).</p>
+
+<h3>1.) Définition des rôles</h3>
+
+<p>On a déjà croisé les rôles dans le fichier <b>security.yml</b>. La notion de rôle et autorisation est très simple: pour limiter l'accès
+à certaines pages, on va se baser sur les rôles de l'utilisateur. Ainsi, limiter l'accès au panel d'administration revient à limiter
+cet accès aux utilisateurs disposant du rôle <b>ROLE_ADMIN</b> (par exemple).</p>
+
+<p>Tout d'abord, essayons d'imaginer les rôles dont on aura besoin dans mon application de plateforme d'annonce. Ce pourrait être :</p>
+
+<ul>
+	<li><b>ROLE_AUTEUR</b> : pour ceux qui ont le droit d'écrire des annonces;</li>
+	<li><b>ROLE_MODERATEUR</b> : pour ceux qui peuvent modérer les annonces;</li>
+	<li><b>ROLE_ADMIN</b> : pour ceux qui peuvent tout faire.</li>
+</ul>
+
+<p>Maintenant, l'idée est de créer une hiérarchie entre ces rôles. On va dire que les auteurs et les modérateurs sont bien différents, 
+et que les admins ont les droits cumulés des auteurs et des modérateurs. Ainsi, pour limiter l'accès à certaines pages,  on ne va pas
+faire "si l'utilisateur a le rôle <b>ROLE_AUTEUR</b> ou s'il a <b>ROLE_ADMIN</b>, alors il peut écrire une annonce". Car un utilisateur
+qui dispose de <b>ROLE_ADMIN</b> dispose également de rôle <b>ROLE_AUTEUR</b>, c'est une inclusion.</p>
+
+<p>Ce sont ces relations, et uniquement ces relations, que nous allons inscrire dans le fichier <b>security.yml</b>. Voici donc comment
+décrire dans la configuration la hiérarchie qu'on vient de définir:</p>
+
+<pre># app/config/security.yml
+
+security:
+	role_hierarchy:
+		# Un admin hérite des droits d'auteur et de modérateur
+		ROLE_ADMIN: [ROLE_AUTEUR, ROLE_MODERATEUR]
+		# On garde ce rôle superadmin, il nous resservira par la suite
+		ROLE_SUPER_ADMIN: [ROLE_ADMIN, ROLE_ALLOWED_TO_SWITCH]
+</pre>
+
+<p>On peut remarquer qu'on n'a pas utilisé de rôle <b>ROLE_USER</b>, qui n'est pas toujours utile. Avec cette hiérarchie, voici des exemples
+de tests que l'on peut faire :</p>
+<ul>
+	<li>Si l'utilisateur a le rôle <b>ROLE_AUTEUR</b>, alors il peut écrire une annonce. Les auteurs et les admins peuvent peuvent donc
+		le faire;</li>
+	<li>Si l'utilisateur a le rôle <b>ROLE_ADMIN</b>, alors il peut supprimer une annonce. Seuls les admins peuvent donc le faire.</li>
+</ul>
+
+<p>Tous ces tests nous permettront de limiter l'accès à nos différentes pages.</p>
+<p class="ai">
+On définit ici uniquement la hiérarchie entre les rôles, et non l'exhaustivité des rôles. Ainsi, on pourrait tout à fait avoir un rôle
+<b>ROLE_TRUC</b> dans notre application, mais que les administrateur n'héritent pas.</p>
+
+<h3>2.) Tester les rôles de l'utilisateur</h3>
+
+<p>Il est temps maintenant de tester concrètement si l'utilisateur courant dispose de tel ou tel rôle. Cela nous permettra de lui donner
+accès à la page, de lui afficher ou non un certain lien, etc.</p>
+
+<p>Il existe quatre méthode pour faire ce test: les annotations, le service <b>security.authorization_checker</b>, Twig et les contrôles
+d'accès. Ce sont quatre façons de faire <em>exactement</em> la même chose.</p>
+
+<h4>a./ Utiliser directement le service <b>security.authorization_checker</b></h4>
+
+<p>Ce n'est pas le moyen le plus court, mais c'est celui par lequel passent les trois autres méthodes. Il faut donc qu'on en parle en 
+premier !</p>
+
+<p>Depuis mon contrôleur ou n'importe quel autre service, il me faut accéder au service <b>service.authorization_checker</b> et appeler
+la méthode <b>isGranted()</b>, tout simplement. Par exemple dans mon contrôleur: </p>
+
+<pre class="controller">// src/OC/PlatformBundle/Controller/AdvertController.php
+
+namespace OC\PlatformBundle\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+
+class AdvertController extends Controller {
+	public function addAction(Request $request) {
+		// On vérifie que l'utilisateur dispose bien au rôle ROLE_AUTEUR
+		if(!$this->get('security.authorization_checker')->isGranted('ROLE_AUTEUR'))
+			//Sinon on déclenche une exception "Accès interdit"
+			throw new AccessDeniedException('Accès limité aux auteurs.');
+		
+		// Ici, l'utilisateur a les droits suffisants
+		// On peut ajouter une annonce
+	}
+}
+</pre>
+
+<p>C'est tout ! Je peux aller sur /platform, mais impossible d'atteindre la page d'ajout d'une annonce sur /platform/add, car je ne dispose
+pas (encore) du rôle <b>ROLE_AUTEUR</b>, comme le montre la figure suivante :</p>
+
+<figure>
+	<img src="forbidden.png" alt="Accès interdit">
+	<figcaption>L'accès est interdit</figcaption>
+</figure>
+
+<h4>b./ Utiliser les annotations dans un contrôleur</h4>
+
+<p>Pour faire exactement ce qu'on vient de faire avec le service <b>security.authorization_checkr</b>, il existe un moyen bien plus
+rapide et joli: les annotations !</p>
+
+<p>L'annotation <b>@Security</b> que nous allons utiliser ici provient du bundle <b>SensioFrameworkExtraBundle</b>, c'est un bundle qui
+apporte quelques petits plus au framework. Pas besoin d'explication, son utilisation est assez simple; regardons ce code :</p>
+
+<b>Réf AdvertController.php</b>
+
+<p>Et voilà ! Grâce à l'annotation <b>@Security</b>, on a sécurisé notre méthode en un seule ligne, vraiment pratique !</p>
+
+<p>La valeur de l'option par défaut de l'annotation est en fait une expression, dans laquelle je peux utiliser plusieurs variables et
+fonctions (dont <em>has_role</em> qu'on a utilisé ici). Si je veux vérifier que l'utilisateur a deux rôles, je peux faire comme ceci:</p>
+
+<pre>
+/**
+ * @Security("has_rol('ROLE_AUTEUR') and has_role('ROLE_AUTRE')")
+ */
+</pre>
+
+<p>Le détail des variables et fonctions disponibles est dans la 
+<a href="https://symfony.com/doc/current/bundles/SensioFrameworkExtraBundle/annotations/security.html">documentation</a>.</p>
+
+<p>Pour vérifier simplement que l'utilisateur est authentifié, et donc qu'il ne sera pas anonyme, je peux utiliser le rôle spécial
+<b>IS_AUTHENTICATED_REMEMBERED</b>.</p>
+
+<h4>c./ Depuis une vue Twig</h4>
+
+<p>Cette méthode est très pratique pour afficher du contenu différent selon les rôles de mes utilisateurs. Typiquement, le lien pour ajouter
+une annonce ne doit être visible que pour les membres qui disposent du rôle <b>ROLE_AUTEUR</b> (car c'est la contrainte que nous avons mise
+sur la méthode <b>addAction()</b>).</p>
+
+<p>Pour cela, Twig dispose d'une fonction <b>isGranted()</b> qui est en réalité un raccourci pour exécuter la méthode <b>isGranted()</b>
+du service <b>security.authorization_checker</b>. La voici en application :</p>
+
+<pre class="vue">{# On n'affiche le lien "Ajouter une annonce" qu'aux auteurs (et admins, qui héritent du rôle  auteur) #}
+{% if is_granted('ROLE_AUTEUR') %}
+	&lt;li>&lt;a href="{{ path('oc_platform_add') }}">Ajouter une annonce&lt;/a>&lt;/li>
+{% endif %}
+</pre>
+
+<h4>d./ Utiliser les contrôles d'accès</h4>
+
+<p>La méthode de l'annotation permet de sécuriser <em>une méthode de contrôleur</em>. La méthode avec Twig permet de sécuriser l'<em>
+affichage</em>. La méthode des contrôles d'accès permet de sécuriser des URL. Elle se configure dans le fichier de configuration de 
+sécurité, c'est la dernière section. Voici par exemple comment sécuriser tout un panel d'administration (toutes les pages dont l'URL
+commence par <b>/admin</b>) en une seule ligne :</p>
+
+<pre># app/config/security.yml
+
+security:
+	access_control:
+		- { path: ^/admin, roles: ROLE_ADMIN }
+</pre>
+
+<p>Ainsi, toutes les URL qui correspondent au <b>path</b> (ici, toutes celles qui commencent par <b>/admin</b>) requièrent le rôle 
+<b>ROLE_ADMIN</b>.</p>
+
+<p>C'est une méthode complémentaire des autres. Elle permet  également de sécuriser mes URL par IP ou par canal (http ou https), grâce
+à des options :</p>
+
+<pre># app/config/security.yml
+
+security:
+	access_control:
+		- { path: ^/admin, ip: 127.0.0.1, requieres_channel: https }
+</pre>
+
+<h4>e./ Pour conclure sur les méthodes de sécurisation</h4>
+
+<p>Symfony offre plusieurs moyens de sécuriser mes ressources (méthode de contrôleur, affichage, URL). Il ne faut ma hésiter à me servir
+de la méthode la plus appropriée pour chacun de mes besoins. C'est la complémentarité des méthodes qui fait l'efficacité de la sécurité
+avec Symfony.</p>
+
+<h2>IV./ Utiliser des utilisateurs de la base de données</h2>
+<h3>1.) Qui sont les utilisateurs ?</h3>
+
+<p>Dans Symfony, un utilisateur est un objet qui implémente l'interface 
+<a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Component/Security/Core/User/UserInterface.php">UserInterface</a>,
+c'est tout. Pour cette interface, il n'y a que cinq méthodes obligatoires. Aller me renseigner.</p>
+
+<p>Heureusement, il existe une classe 
+<a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Component/Security/Core/User/User.php">User</a> qui implémente cette
+instance. Les utilisateurs que nous avons actuellement sont des instances de cette classe.</p>
+
+<h3>2.) Créons notre classe d'utilisateurs</h3>
+
+<p>En vue d'enregistrer nos utilisateurs en base de données, il me faut créer ma propre classe utilisateur, qui sera également une entité
+pour être persistée. Je vais donc générer directement une entité <b>User</b> au sein du bundle <b>OCUserBundle</b>, grâce aux générateur
+de Doctrine (<b>php bin/console doctrine:generate:entity</b>), avec les attributs minimum suivants (tirés de l'interface) :</p>
+
+<ul>
+	<li><b>username</b> : c'est l'identifiant de l'utilisateur au sein de la couche sécurité. Cela ne m'empêchera pas d'utiliser
+		également un id numérique pour notre entité, c'est plus simple pour nous;</li>
+	<li><b>password</b></li>
+	<li><b>salt</b> : pour encode le mot de passe</li>
+	<li><b>roles</b>: un tableau (attention à bien définir comme tel lors de la génération) contenant les rôles de l'utilisateur.</li>
+</ul>
+
+<p>Voilà la classe que l'on obient :</p>
+
+<b>Réf User.php</b>
+
+<p class="ai">
+J'ai rajouté une méthode <b>eraseCredentials()</b> vide pour l'instant mais obligatoire de par l'inteface suivante.</p>
+
+<p>Et bien que Symfony l'accepte comme classe utilisateur de la couche sécurité, il faut qu'on implémente l'interface <b>UserInterface</b>:</p>
+
+<b>réf User.php implements UserInterface</b>
+
+<p>Et voilà, nous avons une classe prête à être utilisée !</p>
+
+<p class="aw">
+==> php bin/console doctrine:schema:update --force</p>
+
+<h3>3.) Créons quelques utilisateurs de test</h3>
+
+<b>Réf LoadUser.php</b>
+
+<p>Il ne manque plus que le <b>php bin/console doctrine:fixtures:load</b>, et j'aurai trois utilisateurs dans ma base de données.</p>
+
+<h3>4.) Définissons l'encodeur pour notre nouvelle classe d'utilisateurs</h3>
+
+<p>Rappel : l'encodeur défini pour nos précédents utilisateurs spécifiait la classe <b>User</b> utilisée. Or maintenant, je vais me servir 
+d'une autre classe, il s'agira de <b>OC\UserBundle\Entity\User</b>. Il est donc obligatoire de définir quel encodeur utiliser pour notre
+nouvelle classe. Comme on a mis les mots de passe en clair dans les fixtures, on doit également utiliser l'encodeur <b>plaintext</b>,
+qui n'encode pas les mots de passe mais les laisse en clair, c'est plus simple pour mes tests.</p>
+
+<p>Ajoutons donc cet encodeur dans la configuration, juste en dessous de celui existant:</p>
+
+<pre># app/config/security.yml
+
+security:
+	encoders:
+		Symfony\Component\Security\Core\User\User: plaintext
+		OC\UserBundle\Entity\User:	plaintext
+</pre>
+
+<h3>5.) Définissons le fournisseur d'utilisateurs</h3>
+<h4>a./ Qu'est-ce qu'un fournisseur d'utilisateurs, concrètement ?</h4>
+
+<p>Un fournisseur d'utilisateur est une classe qui implémente l'interface 
+<a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Component/Security/Core/User/UserProviderInterface.php">
+UserProviderInterface</a> qui contient juste trois méthodes: </p>
+
+<ul>
+	<li><b>loadUserByUsername($username)</b> : qui charge un utilisateur à partir d'un nom d'utilisateur;</li>
+	<li><b>refreshUser($user)</b> : qui rafraîchit un utilisateur avec les valeurs d'origine;</li>
+	<li><b>supportsClass()</b> : qui détermine quelle classe d'utilisateurs gère le fournisseur.</li> 
+</ul>
+
+<p>Je peux le constater, un fournisseur ne fait finalement pas grand-chose, à part charger ou rafraîchir les utilisateurs.</p>
+
+<p>Symfony dispose déjà de trois types de fournisseurs, qui implémentent tous l'interface précédente évidemment, les voici:</p>
+
+<ul>
+	<li><a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Component/Security/Core/User/InMemoryUserProvider.php">
+		memory</a> : utilise les utilisateurs définis dans la configuration, c'est celui qu'on a utilisé jusqu'à maintenat;</li>
+	<li><a href="https://github.com/symfony/symfony/blob/master/src/Symfony/Bridge/Doctrine/Security/User/EntityUserProvider.php">
+		entity</a> : utilise de façon simple une entité pour fournir des utilisateurs, c'est celui qu'on va utiliser;</li>
+	<li><b>id</b> : permet d'utiliser un service quelconque en tant que fournisseur, en précisant le nom du service.</li>
+</ul>
+
+<h4>b./ Créer notre propre <b>fournisseur</b></h4>
+
+<p>Il est temps de créer le fournisseur <b>entity</b> pour notre entité <em>User</em>. Celui-ci existe déjà dans Symfony, nous n'avons donc 
+pas de code à faire, juste un peu de configuration. On va l'appeler "main", un nom arbitraire. Voici comment le déclarer :</p>
+
+<pre>
+security:
+	providers: 
+		# ... je peux supprimer le fournisseur "in_memory"
+		# Et voici mon nouveau fournisseur :
+		main:
+			entity:
+				class: 		OC\UserBundle\Entity\User
+				property:	username
+</pre>
+
+<p>Il y a deux paramètre à préciser pour le fournisseur :</p>
+
+<ul>
+	<li>La classe de l'entité à utiliser évidemment, il s'agit pour le fournisseur de savoir quel repository Doctrine utiliser pour 
+		ensuite charger nos entités. Je peux également utiliser le nom logique de l'entité, ici <b>OCUserBundle:User</b>;</li>
+	<li>L'attribut de la classe qui sert d'identifiant, on utilise <b>username</b>, donc on le lui dit.</li>
+</ul>> 
+
+<p class="ai">
+Dans la configuration, il faut savoir faire la distinction entre "main" et "entity":
+<ul>
+	<li>"main" est le <strong>nom du provider</strong>, totalement arbitraire. On aurait pu utiliser "mon_super_provider". Il faudra juste
+		faire attention à bien utiliser le même dans la configuration du pare-feu;</li>
+	<li>"entity" est le <strong>type de provider</strong>, c'est un nom fixe, défini dans Symfony.</li>
+</ul>
+
+<h4>c./ Dire au pare-feu d'utiliser le nouveau provider</h4>
+
+<p>Maintenant que notre fournisseur existe, il faut demander au pare-feu de l'utiliser lui, et non l'ancien fournisseur <b>in_memory</b>. 
+Pour cela, modifions la valeur du paramètre <b>provider</b> comme ceci :</p>
+
+<pre>
+security:
+	firewalls:
+		main:
+			pattern:   ^/
+			anonymous: true
+			provider:  main # On change cette valeur
+			# ... on reste dans la configuration du pare-feu
+</pre>
+
+<p class="ai">
+Je trouverai encore plus de renseignements sur ce type de fournisseur dans la documentation 
+<a href="https://symfony.com/doc/current/security/entity_provider.html">documentation</a>.</p>
+
+<h3>6.) Manipuler mes utilisateurs</h3>
+
+<p>La couche sécurité est maintenant pleinement opérationnelle et utilise des utilisateurs stockés en base de données. </p>
+
+<p>A ce stade, je peux faire un formulaire d'inscription, modifier mes utilisateurs, changer leurs rôles, etc.</p>
+
+<p>Cependant, toutes les pages d'un espace membre sont assez classiques: inscription, mot de passe perdu, modification du profil, etc. Tout
+cela est du déjà-vu. Et si c'est du déjà-vu, il existe certainement un bundle pour cela. Et en effet, il existe un excellent bundle, il
+s'agit de <b>FOSUserBundle</b> et on va vite l'installer.</p>
+
+<h2>V./ Utiliser FOSUserBundle</h2>
+
+<p>Des développeurs talentueux ont réussi à nous facilter la tâche en créant un bundle qui gère une partie de la sécurité.</p>
+
+<p>Ce bundle s'appelle <b>FOSUserBundle</b>, il est très utilisé par la communauté Symfony car vraiment bien fait, et surtout répondant
+à un besoin basique d'un site internet: l'authentification des membres.</p>
+
+<p>Je vais donc l'intanstaller dans la suite de cette section. Toutefois, cela n'a rien d'obligatoire, je peux tout à fait continuer
+avec le <b>User</b> qu'on vient de développer, cela fonctionne tout aussi bien !</p>
+
+<h3>1.) Installation de <b>FOSUserBundle</b></h3>
+<h4>a./ Télécharger le bundle</h4>
+
+<p>Le bundle <b>FOSUserBundle</b> est hébergé sur Github, comme beaucoup de bundles et projets Symfony. Sa page est ici :
+<a href="https://github.com/FriendsOfSymfony/FOSUserBundle">https://github.com/FriendsOfSymfony/FOSUserBundle</a>.</p>
+
+<p>Mais pour ajouter ce bundle, je vais me servir de composer ==></p>
+
+<pre>// dans composer.json
+
+{	
+	// ...
+	
+	"require": {
+		// ...
+		"friendsofsymfony/user-bundle": "dev-master"
+	}
+}
+</pre>
+
+<p class="ai">
+Il faudra vérifier s'il existe aujourd'hui une version stable, et non cette version "dev-master".</p>
+
+<p>Ensuite, pour installer cette nouvelle dépendance : ==> <b>php composer.phar update friendsofsymfony/user-bundle</b></p>
+
+<p class="ai">
+Le paramètre "nom-du-bundle" me permet de focaliser la mise à jour/installation uniquement sur un seul bundle.</p>
+
+<h4>b./ Activer le bundle</h4>
+
+<p>Dans <b>app/AppKernel.php</b>, je fais :</p>
+
+<pre>// app/AppKernel.php
+
+public function registerBundles() {
+	$bundles = array(
+		// ...
+		new FOS\UserBundle\FOSUserBundle()
+	);
+}
+</pre>
+
+<p>Mon bundle est installé ! Mais, il y a un grand mais... Mon application Symfony ne marchera pas, car il faut faire un peu de 
+configuration et de personnalisation avant de pouvoir tout remettre en marche.</p>
+
+<h4>c./ Hériter <b>FOSUserBundle</b> depuis notre <b>OCUserBundle</b></h4>
+
+<p><b>FOSUserBundle</b> est bien trop générique pour qu'il soit opérationnel automatiquement sur un site particulier. Le personnalisation
+passe par l'héritage du bundle.</p>
+
+<p>Voici comment je dois modifier mon fichier <b>OCUserBundle.php</b>, afin que ce bundle-là hérite de <b>FOSUserBundle</b> :</p>
+
+<b>Réf OCUserBundle.php</b>
+
+<p>Et c'est tout, on a just rajouté la méthode <b>getParent()</b>, et Symfony va savoir gérer le reste.</p>
+
+<p>Lorsqu'un bundle A (notre OCUserBundle) hérite d'un bundle B (FOSUserBundle), cela signifie entre autre que :</p>
+
+<ul>
+	<li>Si une vue du bundle A a le même nom qu'une vue du bundle B, c'est la vue du bundle A qui sera utilisée lorsque je fais
+		"BundleB::myView.html.twig", alors que je mentionne bien "BundleB" dans le nom de la vue.</li>
+	<li>si un contrôleur du bundle A a le même nom qu'un contrôleur du bundle B, c'est le contrôleur du bundle A qui sera utilisé lorsque
+		je fais "BundleB:myController.myAction", alors que je mensionne bien "BundleB" dans le nom du contrôleur.</li>
+</ul>
+
+<h4>d./ Modifier notre entité <b>User</b></h4>
+
+<p>Bien que j'ai déjà créé une entité <b>User</b>, ce nouveau bundle en contient une plus complète, qu'on va utiliser plutôt que de tout
+recoder nous-mêmes. On va donc hériter l'entité <em>User</em> de <em>FOSUserBundle</em> depuis notre entité <em>User</em> de notre
+<em>OCUserBundle</em>. En fait, mon entité ne contient plus grand-chose au final, voici ce que cela donne :</p>
+
+<b>Réf User2.php</b>
+
+<p class="ai">
+Plus besoin d'implémenter <b>UserInterface</b>, car on hérite de l'entité User de FOSUB, qui implémente déjà cette interface. Et même pas
+besoin d'écrire les getters/setters, y compris getId(), qui est également hérité !</p>
+
+<p>Pourquoi avoir fait cela ? Eh bien, parce que le bundle <b>FOSUserBundle</b> définit seulement une <em>mapped superclass</em>, ie
+une classe abstraite à faire hériter pour en faire une vraie entité.</p>
+
+<p>Les attributs qui sont ainsi hérités sont les suivants :</p>
+
+<ul>
+	<li>username</li>
+	<li>email</li>
+	<li>enabled : true ou false suivant que l'inscription a été validée ou pas (dans le cas d'une confirmation par e-mail)</li>
+	<li>password</li>
+	<li>lastLogin : la date de la dernière connexion</li>
+	<li>locked : si je veux désactiver des comptes</li>
+	<li>expired: si je veux que les comptes expirent au-delà d'une certaine durée</li>
+</ul>
+
+<p>On peut retrouver également ceux qui sont pour un usage interne dans la 
+<a href="https://github.com/FriendsOfSymfony/FOSUserBundle/blob/master/Resources/config/doctrine-mapping/User.orm.xml">définition Doctrine</a>
+de la <em>mapped superclass</em>. C'est un fichier de mapping XML, l'équivalent des annotations que l'on utilise.</p>
+
+<p>Vous pouvez rajouter dès maintenant des attributs à votre entitéUser, comme vous savez le faire depuis la partie Doctrine. (?!)</p>
+
+<h4>e./ Configurer un bundle</h4>
+
+<p>Ensuite, je dois définir certains paramètres obligatoires au fonctionnement de <b>FOSUserBundle</b>. J'ouvre donc <b>config.yml</b> et 
+j'ajoute la section suivante :</p>
+
+<b>Réf config.yml</b>
+
+<p>Et voilà, on a bien installé FOSUserBundle ! Avant d'aller plus loin, créons la table <b>User</b> et ajoutons quelques membres pour
+les tests.</p>
+
+<h4>f./ Mise à jour de la table <b>User</b></h4>
+
+<p>Il faut maintenant mettre à jour la table des utilisateurs, vu les modifications que l'on vient de faire.</p>
+
+<p>==> php bin/console doctrine:schema:update --force</p>
+
+<p>On a fini d'initialisé notre bundle, mais il reste encore quelques configurations à faire pour que Symfony l'utilise comme il se doit.</p>
+
+<h3>2.) Configuration de la sécurité pour utiliser le bundle</h3>
+
+<p>Reprenons le <b>security.yml</b> sous la main...</p>
+
+<h4>a./ L'encodeur</h4>
+
+<p>Il est temps d'utiliser un vrai encodeur ==> on utilise couramment la méthode sha512 :</p>
+
+<pre># app/config/security.yml
+
+security:
+	encoders:
+		OC\UserBundle\Entity\User: sha512
+</pre>
+
+<h4>b./ Le fournisseur</h4>
+
+<p>Le bundle inclut son propre fournisseur en tant que service, qui utilise notre entité <b>User</b> mais avec ses propres outils.</p>
+
+==>
+<pre># app/config/security.yml
+
+security:
+	# ...
+	
+	providers:
+		main:
+			id: fos_user.user_provider.username
+</pre>
+
+<h4>c./ Le pare-feu</h4>
+
+<p>Ici, je n'ai pas de changement à faire, étant donné qu'on n'a pas changé le nom du fournisseur associé (juste le type on a changé).</p>
+<p>On va juste en profiter pour activer la possibilité de "Se souvenir de moi" à la connexion. Ajoutons donc l'option <b>remember_me</b>
+dans la configuration :</p>
+
+<pre>Réf security2.yml</pre>
+
+<h4>d./ Configuration de la sécurité : check !</h4>
+
+<p>Et voilà, mon site est prêt à être sécurisé ! En effet, on a fini de configurer la sécurité pour utiliser tout ce qu'offre le bundle
+à ce niveau.</p>
+
+<p>Pour tester à nouveau si tout fonctionne, il faut ajouter des utilisateurs à notre base de données. Pour cela, on ne va pas utiliser
+les fixtures précédentes, mais on va utiliser une commande très sympa proposée par FOSUserBundle. J'exécute la commande suivante 
+pour me lasser guider :</p>
+
+<pre>php bin/console fos:user:create</pre>
+
+<p>Je n'ai plus qu'à rentrer le nom d'utilisateur, le mot de passe et l'e-mail, pour avoir une nouvelle entité <b>User</b> ! </p>
+
+<p>Passons maintenant au reste de la configuration du bundle.</p>
+
+<h3>3.) Configuration du bundle <b>FOSUserBundle</b></h3>
+<h4>a./ Configuration des routes</h4>
+
+<p>En plus de gérer la sécurité, le bundle <b>FOSUserBundle</b> gère aussi les pages classiques comme la page de connexion, celle 
+d'inscription, etc. Pour toutes ces pages, il faut évidemment enregistrer les routes correspondantes. Les développeurs du bundle
+ont volontairement éclaté toutes les routes dans plusieurs fichiers pour pouvoir personnaliser facilement toutes ces pages. Pour l'instant,
+on veut juste les rendre disponibles, on les personnalisera plus tard. Ajoutons donc dans noter <b>routing.yml</b> les imports suivants
+à la suite du nôtre :</p>
+
+<p class="ai">
+Ces fichiers de routes sont définis en XML. Mais Symfony sait gérer tout ça...</p>
+
+<p>Voici un extrait de la commande <b>php bin/console debug:router</b> pour les routes qui concernent ce bundle :</p>
+
+<pre>
+fos_user_security_login           ANY      ANY  /login
+fos_user_security_check           ANY      ANY  /login_check
+fos_user_security_logout          ANY      ANY  /logout
+fos_user_profile_show             GET      ANY  /profile/
+fos_user_profile_edit             ANY      ANY  /profile/edit
+fos_user_registration_register    ANY      ANY  /register/
+fos_user_registration_check_email GET      ANY  /register/check-email
+fos_user_registration_confirm     GET      ANY  /register/confirm/{token}
+fos_user_registration_confirmed   GET      ANY  /register/confirmed
+fos_user_resetting_request        GET      ANY  /resetting/request
+fos_user_resetting_send_email     POST     ANY  /resetting/send-email
+fos_user_resetting_check_email    GET      ANY  /resetting/check-email
+fos_user_resetting_reset          GET|POST ANY  /resetting/reset/{token}
+fos_user_change_password          GET|POST ANY  /profile/change-password
+</pre>
+
+<p>On peut noter que le bundle définit également les routes de sécurité <b>/login</b> et autres. Du coup, je vais laisser ce bundle
+gérer cela, et je supprime donc mes trois routes <b>login, login_check</b> et <b>logout</b> qu'on avait déjà définies et qui ne servent
+plus. De plus, il faut adapter la configuration du pare-feu, car le nom de ces routes a changé, voici ce que cela donne :</p>
+
+<b>Réf security3.html.twig</b>
+
+<p class="aw">
+Comme notre bundle <b>OCUserBundle</b> hérite de <b>FOSUserBundle</b>, pour l'instant c'est notre contrôleur et notre vue qui sont 
+utilisés sur la route <b>login</b>, car les noms que nous avions utilisé sont les mêmes que pour ceux de <b>FOSUserBundle</b>. Etant
+donné que le contrôleur de <b>FOSUserBundle</b> apporte un petit plus (notamment la protection CSRF), je vais supprimer le contrôleur 
+<b>SecurityController</b> et notre vue <b>Security\login.html.twig</b> pour laisser ceux de <b>FOSUserBundle</b> prendre la main.</p>
+
+<p>Il reste quelques petits détails à gérer comme la page de login: il manque sa traduction, et un bouton "Deconnexion"...</p>
+
+<h3>4.) Personnalisation esthétique du bundle</h3>
+
+<p class="ai">Tout cela n'a rien à voir avec la couche sécurité bien entendu !</p>
+
+<h4>a./ Intégrer les pages du bundle dans notre layout</h4>
+
+<p><b>FOSUserBundle</b> utilise volontairement un layout simpliste, parce qu'il a vocation à être remplacé par le nôtre. Le layout
+actuel est le suivant : <a href="https://github.com/FriendsOfSymfony/FOSUserBundle/blob/master/Resources/views/layout.html.twig">
+https://github.com/FriendsOfSymfony/FOSUserBundle/blob/master/Resources/views/layout.html.twig</a>.</p>
+
+<p>On va donc tout simplement le templacer par une vue Twig qui va étendre notre layout à nous. Pour "remplacer" le layout du bundle, 
+on va utiliser l'un des avantages d'avor hérité de ce bundle dans le nôtre, en créant <em>une vue du même nom</em> dans notre bundle.
+Créons donc la vue <b>layout.html.twig</b> suivante :</p>
+
+<b>Réf layout.html.twig</b>
+
+<p>Et voilà !</p>
+
+<h4>b./ Traduire les messages</h4>
+
+<p><b>FOSUB</b> étant un bundle international, le texte est géré par le composant de traduction de Symfony. Par défaut, celui-ci est 
+désactivé. Pour traduire le texte, il suffit donc de l'activer (direction le fichier <b>config.yml</b>) et de décommenter une des
+premières lignes dans <b>framework</b> :</p>
+
+<pre class="vue"># app/config/config.yml
+
+framework:
+	translator:     { fallbacks: ["%locale%"] }
+</pre>
+
+<p>Où <b>%locale%</b> est un paramètre défini un peu plus haut dans le fichier de config. et que je peux mettre à "fr" si ce n'est pas
+déjà fait. Ainsi, tous les messages utilisés par <b>FOSUserBundle</b> seront traduits en français !</p>
+
+<h4>c./ Afficher une barre utilisateur</h4>
+
+<p>Il est intéressant d'afficher dans le layout  si le visiteur est connecté ou non, et d'afficher des liens vers les pages de connexion
+ou de déconnexion. Cela se fait facilement, comme ceci par exemple :</p>
+
+<pre class="vue"> 
+{% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
+    Connecté en tant que {{ app.user.username }}
+    -
+    &lt;a href="{{ path('fos_user_security_logout') }}">Déconnexion&lt;/a>
+{% else %}
+    &lt;a href="{{ path('fos_user_security_login') }}">Connexion&lt;/a>
+{% endif %}
+</pre>
+
+<p class="ai">
+Le rôle <b>IS_AUTHENTICATED_REMEMBERED</b> est donné à un utilisateur qui s'est authentifié soit automatiquement grâce au cookie
+<b>remember_me</b>, soit en utilisant le formulaire de connexion. Le rôle <b>IS_AUTHENTICATED_FULLY</b> est donné à un utilisateur qui 
+s'est obligatoirement authentifié manuellement, en rentrant son mot de passe dans le formulaire de connexion. C'est utile pour protéger
+les opérations sensibles comme le changement de mot de passe ou d'adresse e-mail.</p>
+
+<h4>d./ Manipuler les utilisateurs avec <b>FOSUserBundle</b></h4>
+
+<p>Nous allons voir les moyens pour manipuler vos utilisateurs au quotidien.</p>
+
+<p>Si les utilisateurs sont gérés par <b>FOSUserBundle</b>, ils ne restent que des entités Doctrine2 des plus classiques. Ainsi, je
+pourrais très bien me créer un repository comme je sais le faire. Cependant, profitons du fait que le bundle intègre un 
+<b>UserManager</b> (c'est une sorte de repository avancé). Ainsi, voici les principales manipulations que je peux faire avec :</p>
+
+<b>Réf Controller.php</b>
+
+<p>Et si j'ai besoin de plus de fonctions, je peux parfaitement faire un repository personnel, et le récupérer comme d'habitude 
+via <b>this->getDoctrine()->getManager()->getRepository('OCUserBundle:User')</b>. Et si je veux en savoir plus sur ce que fait le bundle 
+dans les coulisses, je peux aller voir le code des contrôleurs du bundle.</p>
+
+<div class="aw">
+Remarque: Avec la version 2.0 de FOSUserBundle, il y a quelques changement apparemment: <br>
+<ul>
+	<li>Dans <b>config.yml</b>, dans la section <b>fos_user</b>, il faut ajouter le paramètre <b>from_email</b>, comme ceci : 
+<b>réf config_final.yml</b></li>
+	<li>De plus, il y a quelques modification à faire dans <b>security.yml</b> : <b>security_final.yml</b></li>
+	<li>Et pour finir, l'importation des routes est beaucoup plus simplifiée : <b>réf routing_final.yml</b>.</li>
+</ul></div>
+
+<h3>Conclusion</h3>
+
+<p>Ce chapitre touche à sa fin. J'ai maintenant tous les outils en main pour construire mon espace membres, avec un système d'authentification 
+performant et sécurisé, et des accès limités pour mes pages suivant des droits précis.</p>
+
+<p>Tout ceci n'est qu'une introduction à la sécurité sous Symfony. Les processus complets sont très puissants mais évidemment plus 
+complexes. Si je souhaite aller plus loin pour faire des opérations plus précises (authentification Facebook, LDAP, etc.), il faut
+me référer à la <a href="https://symfony.com/doc/current/security.html">documentation officielle sur la sécurité</a>. Je peux aussi ller
+jeter un œil également à la <a href="https://symfony.com/doc/master/bundles/FOSUserBundle/index.html">documentation deFOSUserBundle</a>, 
+qui explique comment personnaliser au maximum le bundle, ainsi que 
+<a href="https://symfony.com/doc/master/bundles/FOSUserBundle/groups.html">l'utilisation des groupes</a>.</p>
+
+<p>Pour information, il existe également un système d'ACL, qui me permet de définir des droits bien plus finement que les rôles. Par exemple, 
+pour autoriser l'édition d'une annonce si on est admin ou si on en est l'auteur. Etant donné que l'on ne traitera pas ce point dans ce 
+cours, je peux me référer à la <a href="https://symfony.com/doc/current/security/acl.html">documentation à ce sujet</a>.</p>
+
+<ul>
+	<li>La sécurité se compose de deux couches :
+		<ul>
+			<li>L'authentification, qui définit qui est le visiteur ;</li>
+			<li>L'autorisation, qui définit si le visiteur a accès à la ressource demandée.</li></ul></li>
+	<li>Le fichier <b>security.yml</b> permet de configurer finement chaque acteur de la sécurité :
+		<ul>
+			<li>La configuration de l'authentification passe surtout par le paramétrage d'un ou plusieurs pare-feu ;</li>
+			<li>La configuration de l'autorisation se fait au cas par cas suivant les ressources : on peut sécuriser une méthode de 
+				contrôleur, un affichage ou une URL.</li></ul></li>
+	<li>Les rôles associés aux utilisateurs définissent les droits dont ils disposent ;</li>
+	<li>On peut configurer la sécurité pour utiliser <b>FOSUserBundle</b>, un bundle qui offre un espace membres presque clé en main.</li>
+	<li>Le code du cours tel qu'il doit être à ce stade est disponible sur la branche 
+		<a href="https://github.com/winzou/mooc-symfony/tree/teration-16">iteration-16</a> du dépot Github.</li>
+</ul>
+
+
+
+
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <!-- Javascript de Bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="../my_bootstrap.js" type="text/javascript"></script>
+</body>
+</html>

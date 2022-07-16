@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Introduction au Symfony</title>
+</head>
+<body>
+<pre>
+                                                    Introduction à Symfony
+                                                          
+Il s'agira ici d'avoir une vision globable du processus d'exécution d'une page sous Symfony.
+
+<h3>
+I./ L'architecture des fichiers
+</h3>
+1.) Liste des répertoires
+
+Dans le répertoire où j'ai extrait les fichiers du framework Symfony, je peux voir qu'il y a surtout beaucoup de dossiers. Tout
+est rangé dans des répertoires. Voici ces dossiers :
+
+	-	app
+	-	bin
+	-	src
+	-	tests
+	-	var
+	-	vendor
+	-	web
+	
+a./ Le répertoire /app
+
+Ce répertoire contient tout ce qui concerne mon site internet... sauf son code source. En fait, c'est simplement pour séparer
+le code source, qui fait la logique de mon site, contrairement aux fichiers de code source qui seront découpés par fonctionnalité 
+de mon site. Dans Symfony, un projet de site internet est une <strong>application</strong>, simple question de vocabulaire. Le
+répertoire <strong>/app</strong> est donc le raccourci pour "application". 
+
+b./ Le répertoire /bin
+
+Ce repértoire contient tous les exécutables dont je vais me servir pendant le développement. Par exécutable, j'entends des 
+commandes PHP, comme on l'a fait avec l'installateur Symfony au chapitre précédent. 
+
+c./ Le répertoire /src
+
+C'est le répertoire dans lequel je mettrai le code source. J'y organiserai mon code en bundles, des briques de mon application,
+dont je verrai la définition plus loin.
+
+d./ Le répertoire /tests
+
+Ce paragraphe contient tous les tests  de mon application. Les tests étant un pan entier de développement et indépendant de
+Symfony, je n'en parlerai pas dans ce cours. Mais il faut savoir qu'ils sont importants pour bien développer. Me renseigner.
+
+e./ Le répertoire /var
+
+Il contient tout ce que Symfony va écrire durant son process: les logs, le cache, et d'autres fichiers nécessaires à son bon
+fonctionnement. Je n'écrirai jamais dedans moi-même.
+
+f./ Le répertoire /vendor
+
+Ce répertoire contient toutes les bibliothèques externes à mon application. Dans ces bibliothèques externes, j'inclus Symfony !
+Une bibliothèque est une sorte de boîte noire qui remplit une fonction bien précise. Par exemple, la biblio SwiftMailer permet
+d'envoyer des e-mails.
+
+g./ Le répertoire /web
+
+Ce répertoire contient tous les fichiers destinés à mes visiteurs : images, fichiers CSS et JavaScript, etc. Il contient également 
+le contrôleur frontal (app.php), dont j'en parlerai juste après. 
+
+En fait, c'est le seul répertoire qui devrait être accessible à mes visiteurs. Les autres répertoires ne sont pas censés être
+accessibles (ce sont mes fichiers de code source, ils me regardent moi, pas mes visiteurs), c'est pourquoi j'y trouverai des
+fichiers .htaccess interdisant l'accès depuis l'extérieur. J'utiliserai donc toujours des URL de type :
+
+<strong>http://localhost/Symfony/web/...</strong> au lieu de simplement http://localhost/Symfony/... .
+
+h./ A retenir
+
+Je passerai la plupart de mon temps dans le répertoire /src, à travailler sur mes bundles. On touchera également pas mal au
+répertoire /app pour configurer mon application. Et lorsque j'installerai des bundles téléchargés, je le ferai dans le 
+répertoire /vendor. 
+
+2.) Le contrôleur frontal
+a./ Définition
+
+Le contrôleur frontal (front controller, en anglais) est le point d'entrée de mon application. C'est le fichier par lequel
+passent toutes mes pages. Dans Symfony, le contrôleur frontal se situe dans le répertoire /web, il s'agit de <strong>app.php</strong>
+ou <strong>app_dev.php</strong>.
+En effet, contrairement à un code classique avec un fichier unique qui gère toutes les pages, Symfony propose, dans un but de
+faciliter le développement, un contrôleur frontal pour les visiteurs (<strong>app.php</strong>) et un autre pour les 
+développeurs (<strong>app_dev.php</strong>). Ce dernier n'étant utilisé que durant la phase de développement. Et ces deux 
+contrôleurs frontaux, fournis par Symfony et prêts à l'emploi, définissent en fait deux environnements de travail.
+
+b./ Deux environnements de travail
+
+L'objectif est de répondre au mieux suivant la personne qui visite :
+
+	-	Un développeur a besoin d'informations sur la page afin de l'aider à développer. En cas d'erreur, il veut tous les 
+	détails pour déboguer facilement. Il n'a pas besoin de rapidité.
+	-	Un visiteur normal n'a pas besoin d'informations particulières sur la page. En cas d'erreur, l'origine de celle-ci ne
+	l'intéresse pas du tout, il veut juste retourner d'où il vient. Par contre, il veut que ce soit rapide à charger. 
+	
+Ainsi, Symfony répond aux besoin de chacun et offre plusieurs environnements de travail : 
+
+	-	L'environnement de développement, appelé "dev", accessible en utilisant le contrôleur frontal app_dev.php. C'est 
+	l'environnement que l'on utilisera toujours pour développer. 
+	-	L'environnement de production, appelé "prod", accessible en utilisant le contrôleur frontal app.php.
+	
+Note : Si la présentation de la page d'erreur en passant par "app_dev.php" me semble dépourvue de tout style CSS, cela est dû
+à un petit bug dans l'installeur Symfony sous Windows, qui fait que mes fichiers CSS ne sont pas bien chargés. Pour corriger
+cette erreur, je dois me placer dans le répertoire Symfony et exécuter la commande <strong>php bin/console assets:install</strong>,
+puis recharger la page. 
+
+Evidemment, dans la suite du cours, j'utiliserai toujours le mode "dev". Et ce n'est qu'une fois que mon site sera opérationnel
+que je ferai en sorte que les inernautes utilisent le mode "prod".
+
+Mais, comment je saurai quelles erreurs surviennet en mode production si elles ne s'affichent pas ? 
+
+==> Les erreurs en mode "prod" sont simplement stockées dans un fichier dont voici le chemin : 
+
+<strong>var/logs/prod.log</strong> : celui-ci contient plein d'infos sur les requêtes effectuées, dont les erreurs
+
+c./ Concrètement, que "contrôle" le contrôleur frontal ?
+
+Le but du contrôleur frontal n'est pas de faire quelque chose, mais d'être un <em>point d'entrée</em> de mon application. Il 
+se limite donc à appeler le noyau (Kernel) de Symfony en disant : "On vient de recevoir une reqûete, transforme-la en réponse STP".
+
+On délègue donc la gestion de la requête au Kernel (se trouvant dans /vendor). Ce dernier aura besoin de moi pour savoir quel
+code exécuter, mais il gère déjà plusieurs choses comme la gestion des erreurs, l'ajout d'une <em>toolbar</em> en bas de l'écran,
+etc.
+
+<h3>
+II./ L'architecture conceptuelle
+</h3>
+Il s'agira ici de comprendre comment s'organise l'exécution du code au sein de Symfony.
+1.) Architecture MVC
+
+Blabla.
+Au final, le contrôleur ne contient que du code très simple, car il se contente d'utiliser des modèles et des vues en leur attribuant
+des tâches précises. Il agit un peu comme un chef d'orchestre.
+
+2.) Parcours d'une requête sous Symfony
+
+Réf schema_symfony.png
+
+Les couleurs permettent de distinguer les points où l'on peut intervenir. En vert, les contrôleur, modèle et vue, c'est ce que je
+devrai développer moi-même. En orange, le Kernel et le Routeur, c'est ce que je devrai configurer. On ne touchera pas au
+contrôleur frontal, en gris. 
+
+Maitenant, il ne me reste plus qu'à voir comment organiser concrètement  mon code et sa configuration.
+
+<h3>
+III./ Symfony et ses bundles
+</h3>
+1.) La découpe en bundles
+a./ Le concept
+
+Un bundle est, en quelque sorte, une brique de mon application. Symfony utilise ce concept novateur qui consiste à regrouper
+dans un même endroit, le bundle, tout ce qui concerne une même <strong>fonctionnalité</strong>. Par exemple, on peut imaginer
+un bundle "Blog" dans mon site, qui regrouperait les contrôleurs, les modèles, les vues, les fichies CSS et JavaScript, etc. Tout
+ce qui concerne directement la fonctionnalité blog de mon site. 
+
+b./ Des exemples
+
+Voici quelques bons exemples de bundles possibles : 
+
+	-	Un bundle Utilisateur, qui va gérer les utilisateurs ainsi que les groupes, intégrer des pages d'administration de
+	ces utilisateurs, et des pages classiques comme le formulaire d'inscription, de récupération de mot de passe, etc.
+	-	Un bundle Blog, qui va fournir une interface pour gérer un blog sur le site. Ce bundle peut utiliser le bundle 
+	Utilisateur pour faire un lien vers les profils des auteurs des articles et des commantaires
+	-	Un bundle Boutique, qui va fournir des outils pour gérer des produits et des commandes dans un site e-commerce par
+	exemple.
+	
+Et ces bundles, parce qu'ils respectent des règles communes, vont fonctionner ensemble. Par exemple, un bundle Forum et un
+bundle Utilisateur devront s'entendre : dans un forum, ce sont des utilisateurs qui interagissent.
+
+c./ L'intérêt
+
+Une question à toujours se poser : quel est l'intérêt de ce que l'on est en train de faire ?
+
+Le premier intérêt de la découpe en bundles est l'échange de bundles en applications. Cela permet donc la portabilité d'une
+fonctionnalité d'une application à l'autre.
+
+Le principe même des bundles offre donc des possibilités infinies ! Je n'aurai donc pas à créer moi-même toutes les
+ fonctionnalités classiques pour mon site internet.
+ 
+ d./ La bonne pratique
+ 
+ Avec cet intérêt en tête, une bonne pratique a émergé concernant la découpe en bundles. En effet, il semblerait intéressant
+ de découper mon application en une multitude de bundles, représentant toutes les fonctionnalités que je propose dans mon
+ application. Or, il s'avère que trop découper ma propre application est chronographe, et n'a que peu d'intérêt si je ne
+ compte pas partager mes bundles avec d'autres développeurs ou d'autres projets, ce qui est souvent le cas.
+ 
+ Ainsi, il est courant dans une application d'avoir la plupart du code dans un seul bundle, appelé App ou Core, car ce code
+ n'est pas amené à être partagé à l'avenir. C'est une simplification et donc un gain de temps.
+ 
+ Bien sûr, la notion de bundle reste forte et très utilisée lorsque l'on <strong>partager</strong> une fonctionnalité
+ entre plusieurs de ses applications, ou avec d'autres développeurs.
+ 
+ e./ Les <em>bundles</em> de la communauté
+ 
+ Presque tous les bundles de la communauté Symfony sont regroupés sur un même site : <a href="http://knpbundles.com">
+ http://knpbundles.com</a>. Il en existe bcp, et pour n'en citer que quelques-uns :
+ 
+ 	-	<a href="http://knpbundles.com/FriendsOfSymfony/FOSUserBundle">FOSUserBundle</a> : 
+ 			c'est un bundle destiné à gérer les utilisateurs de mon site. Concrètement, il fournit le modèle
+ 			<strong>utilisateur</strong> ainsi que le contrôleur  pour accomplir les actions de base (connexion, inscription,
+ 			déconnexion, modification d'un utilisateur, etc.) et fournit aussi les vues qui vont avec. Bref, il suffit d'installer
+ 			le bundle et de le personnaliser un peu pour obtenir un espace membre ! Je l'étudierai dans la suite du cours
+ 	-	<a href="http://knpbundles.com/FriendsOfSymfony/FOSCommentBundle">FOSCommentBundle</a> :
+ 			C'est un bundle destiné à gérer les commentaires. Concrètement, il fournit le modèle <strong>commentaire</strong> (ainsi
+ 			que le contrôleur) pour ajouter, modifier et supprimer des commentaires. Les vues sont fournies avec, évidemment. Bref,
+ 			en installant ce bundle, je pourrai ajouter un fil de commentaires à n'importe quelle page de mon site ! 
+ 	-	<a href="http://knpbundles.com/ornicar/GravatarBundle">GravaterBundle</a> : 
+ 			C'est un bundle destiné à gérer les avatars depuis le sevice web Gravatar. Concrètement, il fournit une extension
+ 			au moteur de templates pour pouvoir afficher facilement un avatar issu de Gravatar via une simple fonction qui
+ 			s'avère être très pratique.
+ 	-	Etc.
+ 	
+ 2.) La structure d'un bundle
+ 
+ Un bundle contient tout : contrôleurs, vues, modèles, classes personnelles, etc. Bref, tout ce qu'il faut pour remplir la fonction
+ du bundle. Evidemment, tout cela est organisé en dossiers afin que tout le monde s'y retrouve. Voici la structure d'un
+ bundle à partir de son répertoire de base :
+ 
+ ______________________________________________________________________________________________________________________________
+/Controller          | Contient les contrôleurs
+/DependencyInjection | Contient des informations sur le bundle (chargement automatique de la configuration par exemple)
+/Entity              | Contient les modèles
+/Form                | Contient les éventuels formulaires
+/Resources
+-- /config             | Contient les fichiers de configuration du bundle (je placerai les routes ici, par exemple)
+-- /public             | Contient les fichiers publics du bundle : fichiers CSS et JavaScript, images, etc.
+-- /views              | Contient les vues du bundle, les templates Twig
+--------------------------------------------------------------------------------------------------------------------------------
+
+C'est une structure conventionnelle qui n'est pas fixe pour autant, je peux y créer tous les dossiers que je veux pour
+organiser mon code. 
+
+En résumé : Symfony est organisé en six répertoires : app, bin, src, var, vendor et web.
+Le répertoire dans lequel je passerai le plus de temps est src, celui-ci contient le code source de mon site.
+Il existe deux environnements de travail : l'environnement "prod" destiné à mes visiteurs, et l'environnement "dev", moins rapide
+mais offrant plein d'informations utiles au développement.
+Symfony utilise l'architecture MVC pour bien organiser les différentes parties du code source.
+Un bundle est une brique de mon application : il contient tout ce qui concerne une fonctionnalité donnée. Cela permet de bien
+organiser les différentes parties de mon site.
+Il existe des milliers de bundles développés par la communauté. Il faut penser à vérifier qu'il n'existe déjà pas un bundle qui
+fait ce que je souhaite faire !
+</pre>
+</body>
+</html>

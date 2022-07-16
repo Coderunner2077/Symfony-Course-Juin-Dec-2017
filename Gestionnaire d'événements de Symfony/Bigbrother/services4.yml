@@ -1,0 +1,15 @@
+services:
+    # ... 
+    
+    oc_platform.bigbrother.message_notificator:
+        class: OC\PlatformBundle\Bigbrother\MessageNotificator
+        arguments:
+            - "@mailer"
+          
+    oc_platform.bigbrother.message_listener:
+        class: OC\PlatformBundle\Bigbrother\MessageListener
+        arguments:
+            - "@oc_platform.bigbrother.message_notificator"
+            - [ "julien", "fabien", "george" ]
+        tags:
+            - { name: kernel.event_subscriber }

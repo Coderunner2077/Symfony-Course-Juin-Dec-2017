@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Insert title here</title>
+</head>
+<body>
+<pre>
+                                               <h2>Spinoff du chapitre Moteur de templates Twig</h2>
+                                               
+<h3>
+V./ Application : les templates de ma plateforme
+</h3>
+Revenons à ma plateforme. Le but ici est de créer tous les templates que l'on a utilisés depuis le contrôleur, ou du moins leur
+squelette. Etant donné que l'on n'a pas encore accès à la base de données, on va travailler avec des variables vides : cela va se remplir 
+par la suite, mais le fait d'employer des variables vides va me permettre dès maintenant de construire le template.
+
+Pour encadrer tout ça, je vais utiliser le modèle d'héritage sur trois niveaux : layout général, layout du bundle et template.
+
+1.) Layout général
+a./ La théorie
+
+Comme évoqué précédemment, le layout est la structure HTML de mon site avec des blocs aux endroits stratégiques pour permettre aux templates
+qui hériteront de ce dernier de personnaliser la page. On va ici créer une structure simple. Pour les blocs, pour l'instant, on fait simple :
+un bloc pour le corps et un bloc pour le titre.
+
+Note : Pour le design du site que l'on va construire, je vais utiliser le <a href="https://getbootstrap.com/">Bootstrap de Twitter</a>. C'est
+un framework CSS, l'équivalent pour le CSS de ce que Symfony est pour le PHP. Cela permet de faire des beaux designs, boutons ou liens
+très rapidement. Je pourrai le voir dans les vues que je fais par la suite. Il existe un cours sur Bootsrap sur le site Openclassrooms.
+Cliquer <a href="https://openclassrooms.com/courses/prenez-en-main-bootstrap">ici</a> pour y accéder.
+
+b./ La pratique
+
+Commençons par réaliser le layout général de l'application, la vue située dans le répertoire <strong>/app</strong>. Voici un exemple qui
+peut faire l'affaire :
+
+Réf layout.html.twig
+
+Et voilà, j'ai mon layout général ! Pour pouvoir tester mes pages, il faut maintenant s'attaquer au layout du bundle.
+
+2.) Layout du bundle
+a./ La théorie
+
+Comme on l'a dit, ce template va hériter du layout général, ajouter la petite touche personnelle au bundle Advert, puis être hérité à 
+son tour  les templates finaux. En fait, il ne contient pas grand-chose. Mais je peux laisser courir mon imagination. Ici, on ne va
+rajouter qu'une balise &lt;h1>, histoire de voir le mécanisme.
+
+La seule chose à laquelle il faut faire attention, c'est au niveau du nom des blocs que ce template crée pour ceux qui vont l'hériter. Une 
+bonne pratique consiste à préfixer le nom des blocs par le nom du bundle courant.
+
+b./ La pratique 
+
+Réf layout2.html.twig
+
+Dans ce temlate, j'ai également créé un nouveau bloc qui sera personnalisé par les templates finaux. J'ai préfixé le nom du nouveau
+bloc pour le <strong>body</strong> afin d'avoir un nom unique pour mon bundle.
+
+3.) Les templates finaux
+a./ Advert/index.html.twig
+
+C'est le template de la page d'accueil. Je vais faire ma première boucle sur la variable {{ listeAdverts }}. Cette variable n'existe pas 
+encore, je vais modifier le contrôleur juste après. 
+
+Réf index.html.twig
+
+Afin que cela fonctionne, il me faut modifier l'action indexAction() du contrôleur pour passer une variable {{ listAdverts }} à cette vue.
+POur l'instant, voici juste de quoi se débarasser de l'erreur :
+
+                                                      _____________________________________
+                                                      
+&lt;?php
+// src/OC/PlatformBundle/Controller/AdvertController.php
+
+// Dans la méthode indexAction() :
+
+return $this->render('OCPlatformBundle:Advert:index.html.twig, array(
+	'listeAdverts' => array()
+));
+                                                                _________________                                                     
+
+Si je n'avais pas ajouté l'action <strong>menu</strong> du contrôleur tout à l'heure, voici comment le faire, et aussi comment l'adapter
+à l'argument qu'on lui a passé cette fois-ci : 
+
+Avec sa vue associée :
+
+Réf menu.html.twig (dossier précédent)
+
+Je vais aussi ajouter un tableau d'annonces à ajouter temporairement dans la méthode indexAction(), que je peux passer en paramètre
+à la méthode render(). 
+
+b./ Advert/view.html.twig
+
+Il ressemble beaucoup à index.html.twig sauf qu'on passe à la vue une variable {{ advert }}  contenant une seule annonce, et non plus une
+liste d'annonces. Voici un code exemple : 
+
+Réf view.html.twig
+
+Et l'adaptation du contrôleur : 
+
+Réf AdvertController.php
+
+c./ Advert/edit.html.twig et add.html.twig
+
+Ceux-ci contiennent une inclusion de template, celui du formulaire.
+
+Réf edit.html.twig
+
+Réf add.html.twig
+
+Une chose très importante, en ce qui concerne <strong>form.html.twig</strong>, il n'y a aucune notion de bloc, d'héritage, etc. Ce template
+est un électron libre: je peux l'inclure depuis n'importe quel autre template.
+
+d./ Advert/delete.html.twig
+
+Et, bien sûr, il faut adapter le contrôleur pour passer la variable $advert depuis la méthode editAction() : 
+
+Réf AdvertController.php
+
+<a href="C:\Users\Harry\Documents\Symfony\Moteur de templates Twig\template_twig.html">Retour à la page principale</a>
+
+
+</pre>
+</body>
+</html>

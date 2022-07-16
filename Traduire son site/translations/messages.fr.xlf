@@ -1,0 +1,21 @@
+<!-- src/OC/PlatformBundle/Resources/translations/messages.fr.xlf -->
+
+<?xml version="1.0"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+	<file source-lang="en" datatype="plaintext" original="file.ext">
+		<body>
+			<trans-unit id="1">
+				<!-- La chaîne source, à traduire. C'est celle que l'on utilisera:
+				{% trans %}Symfony is great{% endtrans %}
+				ou
+				{{ 'Symfony is great'|trans }}
+				ou
+				$translator->trans('Symfony is great') -->
+				<source>Symfony is great</source>
+				
+				<!-- La chaîne cible, traduction de la chaîne ci-dessus -->
+				<target>J'aime Symfony</target>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>
